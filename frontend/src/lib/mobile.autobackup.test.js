@@ -1,4 +1,4 @@
-// Auto-backup on the phone (#161): the copies go into Documents/Repbook/, and each write keeps
+// Auto-backup on the phone (#161): the copies go into Documents/SetLog/, and each write keeps
 // the newest fourteen there. Nothing outside that folder, and nothing but the app's own dated
 // backups inside it, is ever deleted.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -40,8 +40,8 @@ vi.mock('@capacitor/filesystem', () => ({
 const { writeAutoBackup, AUTO_BACKUP_DIR, AUTO_BACKUP_KEEP } = await import('./mobile.js')
 
 const day = n => { const d = new Date(2026, 0, 1); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
-const backup = d => 'repbook-backup-' + d + '.json'
-const inFolder = () => [...h.files.keys()].filter(k => k.startsWith('DOCUMENTS/Repbook/')).map(k => k.slice('DOCUMENTS/Repbook/'.length)).sort()
+const backup = d => 'setlog-backup-' + d + '.json'
+const inFolder = () => [...h.files.keys()].filter(k => k.startsWith('DOCUMENTS/SetLog/')).map(k => k.slice('DOCUMENTS/SetLog/'.length)).sort()
 const put = (path, data = '{}') => h.files.set('DOCUMENTS/' + path, data)
 
 beforeEach(() => {
@@ -50,27 +50,27 @@ beforeEach(() => {
 })
 
 describe('writeAutoBackup', () => {
-  it('writes today\'s copy into Documents/Repbook, not the Documents root', async () => {
+  it('writes today\'s copy into Documents/SetLog, not the Documents root', async () => {
     await writeAutoBackup({ workouts: [{ id: 'w1' }] })
-    expect(AUTO_BACKUP_DIR).toBe('Repbook')
-    expect(JSON.parse(h.files.get('DOCUMENTS/Repbook/' + backup(todayISO())))).toEqual({ workouts: [{ id: 'w1' }] })
+    expect(AUTO_BACKUP_DIR).toBe('SetLog')
+    expect(JSON.parse(h.files.get('DOCUMENTS/SetLog/' + backup(todayISO())))).toEqual({ workouts: [{ id: 'w1' }] })
     expect(h.files.has('DOCUMENTS/' + backup(todayISO()))).toBe(false)
   })
 
   it('keeps the newest fourteen in the folder, today\'s among them, and deletes only older dated backups', async () => {
-    for (let i = 0; i < 20; i++) put('Repbook/' + backup(day(i)))
-    put('Repbook/notes.txt'); put('Repbook/repbook-backup-latest.json'); put('Repbook/' + backup(day(0)).replace('.json', '.json.bak'))
-    put('Repbook/' + backup('2020-01-01') + '/inside.json')   // a directory that happens to carry the name
+    for (let i = 0; i < 20; i++) put('SetLog/' + backup(day(i)))
+    put('SetLog/notes.txt'); put('SetLog/setlog-backup-latest.json'); put('SetLog/' + backup(day(0)).replace('.json', '.json.bak'))
+    put('SetLog/' + backup('2020-01-01') + '/inside.json')   // a directory that happens to carry the name
     await writeAutoBackup({})
-    const dated = inFolder().filter(n => /^repbook-backup-\d{4}-\d{2}-\d{2}\.json$/.test(n))
+    const dated = inFolder().filter(n => /^setlog-backup-\d{4}-\d{2}-\d{2}\.json$/.test(n))
     expect(AUTO_BACKUP_KEEP).toBe(14)
     expect(dated).toHaveLength(14)
     expect(dated).toContain(backup(todayISO()))
     // The thirteen newest of the old ones survive next to today's.
     expect(dated.filter(n => n !== backup(todayISO()))).toEqual([...Array(13)].map((_, i) => backup(day(19 - i))).sort())
     // Everything that is not an automatic backup is untouched.
-    expect(inFolder()).toEqual(expect.arrayContaining(['notes.txt', 'repbook-backup-latest.json', backup(day(0)).replace('.json', '.json.bak')]))
-    expect(h.files.has('DOCUMENTS/Repbook/' + backup('2020-01-01') + '/inside.json')).toBe(true)
+    expect(inFolder()).toEqual(expect.arrayContaining(['notes.txt', 'setlog-backup-latest.json', backup(day(0)).replace('.json', '.json.bak')]))
+    expect(h.files.has('DOCUMENTS/SetLog/' + backup('2020-01-01') + '/inside.json')).toBe(true)
   })
 
   it('never touches the Documents root, where older versions wrote and where a manual export may sit', async () => {
@@ -82,7 +82,7 @@ describe('writeAutoBackup', () => {
   })
 
   it('keeps the copy it just wrote even when a clock set back makes it the oldest', async () => {
-    for (let i = 0; i < 20; i++) put('Repbook/' + backup('2099-01-' + String(i + 1).padStart(2, '0')))
+    for (let i = 0; i < 20; i++) put('SetLog/' + backup('2099-01-' + String(i + 1).padStart(2, '0')))
     await writeAutoBackup({})
     const left = inFolder()
     expect(left).toHaveLength(14)
@@ -90,18 +90,18 @@ describe('writeAutoBackup', () => {
   })
 
   it('a failed write deletes nothing, and a folder it cannot list or a stuck file stops nothing else', async () => {
-    for (let i = 0; i < 20; i++) put('Repbook/' + backup(day(i)))
+    for (let i = 0; i < 20; i++) put('SetLog/' + backup(day(i)))
     h.refuseWrite = true
     await writeAutoBackup({})
     expect(h.deleted).toEqual([])
 
     h.refuseWrite = false; h.refuseList = true
     await expect(writeAutoBackup({})).resolves.toBeUndefined()
-    expect(h.files.has('DOCUMENTS/Repbook/' + backup(todayISO()))).toBe(true)
+    expect(h.files.has('DOCUMENTS/SetLog/' + backup(todayISO()))).toBe(true)
     expect(h.deleted).toEqual([])
 
     h.refuseList = false
-    h.stuck.add('Repbook/' + backup(day(0)))
+    h.stuck.add('SetLog/' + backup(day(0)))
     await writeAutoBackup({})
     expect(inFolder()).toHaveLength(15)   // fourteen, plus the one that would not go
     expect(inFolder()).toContain(backup(day(0)))
@@ -112,11 +112,11 @@ describe('writeAutoBackup', () => {
 // and every backup that day failed with EACCES and was dropped without a word (Android QA, v1.3.9).
 describe('writeAutoBackup where today\'s name belongs to another install', () => {
   it('writes the copy under the day\'s second name, and again there on the next write', async () => {
-    const other = 'Repbook/' + backup(todayISO())
+    const other = 'SetLog/' + backup(todayISO())
     put(other, '{"theirs":true}')
     h.foreign.add(other)
     await writeAutoBackup({ n: 1 })
-    const second = 'DOCUMENTS/Repbook/' + backup(todayISO()).replace('.json', '-2.json')
+    const second = 'DOCUMENTS/SetLog/' + backup(todayISO()).replace('.json', '-2.json')
     expect(JSON.parse(h.files.get(second))).toEqual({ n: 1 })
     await writeAutoBackup({ n: 2 })
     expect(JSON.parse(h.files.get(second))).toEqual({ n: 2 })
@@ -124,13 +124,13 @@ describe('writeAutoBackup where today\'s name belongs to another install', () =>
   })
 
   it('with the first two names owned by earlier installs, the copy goes under the third', async () => {
-    for (const n of ['', '-2']) { const p = 'Repbook/' + backup(todayISO()).replace('.json', n + '.json'); put(p, '{"theirs":true}'); h.foreign.add(p) }
+    for (const n of ['', '-2']) { const p = 'SetLog/' + backup(todayISO()).replace('.json', n + '.json'); put(p, '{"theirs":true}'); h.foreign.add(p) }
     await writeAutoBackup({ n: 3 })
-    expect(JSON.parse(h.files.get('DOCUMENTS/Repbook/' + backup(todayISO()).replace('.json', '-3.json')))).toEqual({ n: 3 })
+    expect(JSON.parse(h.files.get('DOCUMENTS/SetLog/' + backup(todayISO()).replace('.json', '-3.json')))).toEqual({ n: 3 })
   })
 
   it('counts the second names among the fourteen it keeps, and prunes them like any other', async () => {
-    for (let i = 0; i < 20; i++) put('Repbook/' + backup(day(i)).replace('.json', i % 2 ? '-2.json' : '.json'))
+    for (let i = 0; i < 20; i++) put('SetLog/' + backup(day(i)).replace('.json', i % 2 ? '-2.json' : '.json'))
     await writeAutoBackup({})
     expect(inFolder()).toHaveLength(14)
     expect(inFolder()).toContain(backup(todayISO()))
@@ -139,7 +139,7 @@ describe('writeAutoBackup where today\'s name belongs to another install', () =>
   })
 
   it('a disk that takes neither name still deletes nothing', async () => {
-    for (let i = 0; i < 20; i++) put('Repbook/' + backup(day(i)))
+    for (let i = 0; i < 20; i++) put('SetLog/' + backup(day(i)))
     h.refuseWrite = true
     await expect(writeAutoBackup({})).resolves.toBeUndefined()
     expect(h.deleted).toEqual([])

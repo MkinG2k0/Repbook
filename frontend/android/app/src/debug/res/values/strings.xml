@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <!-- Debug-only overrides so the test build shows a distinct name next to the real app. -->
-    <string name="app_name">RepbookTest</string>
-    <string name="title_activity_main">RepbookTest</string>
+    <string name="app_name">SetLogTest</string>
+    <string name="title_activity_main">SetLogTest</string>
 </resources>

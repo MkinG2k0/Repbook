@@ -41,7 +41,7 @@
   --yellow:#ffd60a; --teal:#40c8e0; --indigo:#5e5ce6; --pink:#ff375f;
   --purple:#bf5af2; --mint:#63e6e2; --brown:#ac8e68; --grey:#8e8e93;
 
-  /* accent (per-account, synced) — Repbook default: orange */
+  /* accent (per-account, synced) — SetLog default: orange */
   --acc:  var(--orange);
   --acc-2:#c76b00;
   --on-acc:#000000;
@@ -87,7 +87,7 @@
   --blue:#007aff; --green:#34c759; --red:#ff3b30; --orange:#ff9500;
   --yellow:#ffcc00; --teal:#30b0c7; --indigo:#5856d6; --pink:#ff2d55;
   --purple:#af52de; --mint:#00c7be; --brown:#a2845e; --grey:#8e8e93;
-  /* Repbook default accent: orange */
+  /* SetLog default accent: orange */
   --acc:  var(--orange);
   --acc-2:#c76b00;
   --on-acc:#000000;

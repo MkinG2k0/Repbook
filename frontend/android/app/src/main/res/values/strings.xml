@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Repbook</string>
-    <string name="title_activity_main">Repbook</string>
+    <string name="app_name">SetLog</string>
+    <string name="title_activity_main">SetLog</string>
     <string name="package_name">com.mking.repbook</string>
     <string name="custom_url_scheme">com.mking.repbook</string>
     <string name="rest_countdown_channel_name">Rest countdown</string>

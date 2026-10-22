@@ -2,6 +2,7 @@
  *
  *   Library/repbook-media/<hash>.<playExt>   one file per photo, GIF or video
  *   Library/repbook-media/index.json          { hash: { mime, size, putAt, shownAt, pending, rejected } }
+ *   (folder name kept as repbook-media so existing installs keep their media after the SetLog rebrand)
  *
  * Directory.Library is iOS's Library folder (kept in device backups, never shown in Files) and
  * Android's files directory. Android's cloud backup is told to leave the folder out

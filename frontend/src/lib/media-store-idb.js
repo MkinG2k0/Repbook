@@ -7,6 +7,7 @@
  * there for guests and the demo as much as for a signed-in browser, and it is per origin like
  * the rest of the profile. Opening can fail — some private windows block it, an old Firefox
  * refuses Blobs in it — and then open() answers false and the store falls back to memory.
+ * DB id kept as repbook-media so existing browser profiles keep their media after the SetLog rebrand.
  */
 
 const DB = 'repbook-media'

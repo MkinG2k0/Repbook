@@ -211,7 +211,7 @@ export function createMediaSync(deps = {}) {
       return running
     }
     running = (async () => {
-      try { await withLock('repbook-media-sync', () => run(opts)) }
+      try { await withLock('setlog-media-sync', () => run(opts)) }
       catch { /* best effort: the next trigger tries again */ }
       finally {
         running = null
@@ -283,7 +283,7 @@ export function createMediaSync(deps = {}) {
     if (!store) return false
     if (!store.getState().ready) { gcWaiting = true; return false }
     gcWaiting = false
-    await withLock('repbook-media', async () => {
+    await withLock('setlog-media', async () => {
       const st = store.getState()
       const live = referencedHashes(st.S)
       try {

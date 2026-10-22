@@ -1,6 +1,6 @@
 {
-  "name": "Repbook",
-  "short_name": "Repbook",
+  "name": "SetLog",
+  "short_name": "SetLog",
   "description": "Personal gym & body weight tracker",
   "start_url": "./",
   "scope": "./",

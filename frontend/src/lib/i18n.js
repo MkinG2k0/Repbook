@@ -53,7 +53,7 @@ let lastShowEn = undefined
 let lastEnOnly = undefined
 
 export async function setLang(l, showEn, enOnly) {
-  if (!LANGS[l]) l = 'en'
+  if (!LANGS[l]) l = 'ru'
   const show = showEn !== false
   const only = enOnly === true
   // Both display switches participate in the early-exit, so toggling the parens or the

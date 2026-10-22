@@ -1,0 +1,42 @@
+---
+description: Rebuild and reinstall the Capacitor Android app when mobile testing is needed
+alwaysApply: true
+---
+
+# Mobile rebuild before phone testing
+
+The phone does **not** use `npm run dev` / `localhost:5173`. Capacitor serves a baked web bundle from `android/app/src/main/assets/public`. UI or frontend logic changes are invisible on device until that bundle is rebuilt and the APK is reinstalled.
+
+## When you must rebuild
+
+Do this whenever the user asks to test on the phone / APK / emulator, or after you change anything that ships in the mobile shell (frontend `src/`, locales, mobile plugins, Capacitor config, Android resources the app shows at runtime).
+
+Do **not** tell the user to “just reopen the app” or only check the Vite URL.
+
+## Rebuild steps (Windows)
+
+```powershell
+cd frontend
+$env:VITE_MOBILE = "1"
+Remove-Item Env:VITE_DEMO -ErrorAction SilentlyContinue
+npx vite build
+node ../scripts/catalogue/stage-media.mjs dist
+npx cap sync android
+node scripts/check-mobile-bundle.mjs
+
+cd android
+$env:JAVA_HOME = "C:\Users\mk\AppData\Local\Programs\Android Studio\jbr"
+# fallback: C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+.\gradlew.bat assembleDebug
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+```
+
+- Debug APK is **SetlogTest** (`applicationId` + `.test`) — side-by-side with release. Tell the user to open **SetlogTest**, not the old release icon.
+- If the device still shows the old UI after install: force-stop or clear app data for SetlogTest.
+- `package.json` `build:mobile` uses Unix `VITE_MOBILE=1`; on PowerShell set `$env:VITE_MOBILE = "1"` yourself (as above).
+
+## Do not confuse with web
+
+- Browser QA → `npm run dev` is enough.
+- Phone QA → mobile rebuild + install is required, every time the frontend changed since the last APK.

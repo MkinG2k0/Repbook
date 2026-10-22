@@ -40,8 +40,8 @@ export function deviceId() {
 // the device id here instead, in a cache of its own that its activate sweep leaves alone. Left
 // every time this browser holds a subscription the server should have, so a browser subscribed
 // before the worker looked for it has it by its next boot.
-const DEVICE_CACHE = 'repbook-device'
-const DEVICE_URL = '/repbook-device-id'
+const DEVICE_CACHE = 'SetLog-device'
+const DEVICE_URL = '/SetLog-device-id'
 async function shareDeviceId() {
   const id = deviceId()
   if (!id) return

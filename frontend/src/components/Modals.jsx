@@ -164,7 +164,7 @@ export default function Modals() {
     if (sheets.length > prev) {
       for (let i = prev; i < sheets.length; i++) {
         sheetEntries.current.push({ openedAt: location.href, live: true })
-        history.pushState({ RepbookSheet: true }, '')
+        history.pushState({ SetLogSheet: true }, '')
         pushedEntries.current++
       }
     } else if (sheets.length < prev) {

@@ -263,7 +263,7 @@ describe('parseHevyRoutines', () => {
     ],
   }
 
-  it('builds Repbook routine configs from Hevy sets', () => {
+  it('builds SetLog routine configs from Hevy sets', () => {
     const parsed = parseHevyRoutines([ROUTINE], TEMPLATES, { unit: 'kg' })
     expect(parsed.routines).toHaveLength(1)
     expect(parsed.routines[0].name).toBe('Oberkörper 2')

@@ -27,16 +27,15 @@ through the OS share sheet instead of a browser download.
 
 ### Connecting the app to your own server
 
-On first launch the app asks how you want to use it. Alongside the fully local mode above,
-you can instead **connect it to a self-hosted openGym server** — your data then lives there,
-synced the same way the browser PWA does, instead of only on the phone. This is a mode of the
-same app, not a different build or download.
+The app starts in local mode. You can later **connect it to a self-hosted openGym server** —
+your data then lives there, synced the same way the browser PWA does, instead of only on the
+phone. This is a mode of the same app, not a different build or download.
 
 Passkeys can't be used for this: the app's WebView runs at its own origin, which never
 matches the real hostname WebAuthn needs. Instead you *pair* the device from a browser
 that's already signed in: Settings → Account → **"Pair the mobile app"** shows a one-time code (valid
-5 minutes); enter your server's address and that code in the app (same first-launch screen,
-or Settings → Account → **"Connect to my server"** later) to finish. Notes:
+5 minutes); enter your server's address and that code in the app under Settings → Account →
+**"Connect to my server"** to finish. Notes:
 
 - Works offline too: the phone keeps its copy (and the file mirror) while connected, and
   changes made without a network go to the server as soon as it is reachable again.
@@ -82,10 +81,9 @@ If your server sits behind [Cloudflare Access](https://developers.cloudflare.com
    app runs on its own origin, so every request is preceded by a CORS preflight, and a
    preflight never carries the token — without the bypass, Access refuses it and nothing
    gets through. The openGym API answers the preflight itself and allows both headers.
-4. In the app, before connecting: first-launch screen → **Connection settings** (or the
-   **Cloudflare Access** button in the Connect sheet), enter your server's address and the two
-   values, then pair as usual. They can be changed later under Settings → **Server & sync** →
-   **Cloudflare Access**.
+4. In the app, before connecting: open Settings → Account → **Connect to my server**, tap
+   **Cloudflare Access**, enter your server's address and the two values, then pair as usual.
+   They can be changed later under Settings → **Server & sync** → **Cloudflare Access**.
 
 The app then sends `CF-Access-Client-Id` and `CF-Access-Client-Secret` with every request to
 the server address they were entered for (scheme, host and port), including the pairing itself,
@@ -107,7 +105,7 @@ status bar says so on every screen, and stays until the condition is gone:
 | *Your server's address answered with something other than openGym (HTTP 200)…* | Something else answered in the server's place — typically a proxy's sign-in page or a catch-all that serves the web app for `/api/*`. | Let `/api/*` through to the openGym API unchanged, including the `Authorization` header. |
 | *Your server no longer accepts this phone…* | The server refused the phone's token (401): "sign out everywhere", the account disabled, a `data/secret` that was replaced, a token older than `SESSION_DAYS`, or a proxy with its own login that rejects `Authorization: Bearer`. | **Pair again**: in a signed-in browser open Settings → "Pair the mobile app" and enter the new code. The address is already filled in. |
 | *This phone is no longer paired with your server…* | A phone that an earlier version of the app unpaired by itself after its token was refused. The address is gone. | **Pair again**, typing the address. |
-| *On this phone only, not connected to a server* | Local mode, chosen at first launch or after Disconnect. Said quietly. | Nothing, or **Connect** to pair with a server. |
+| *On this phone only, not connected to a server* | Local mode (the default, or after Disconnect). Said quietly. | Nothing, or **Connect** to pair with a server. |
 
 Don't want the line? Settings → Look & Home → **Show connection status** turns it off (it is on
 by default, and the setting travels with your profile). A phone kept local on purpose then shows

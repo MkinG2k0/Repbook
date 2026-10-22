@@ -50,7 +50,7 @@ const SYNCED_FP_KEY = 'gym_synced_fp'  // a fingerprint of that copy (lib/sync-c
 // Changes a forced sign-out or disconnect kept on this device, by server and account, until it
 // reaches that server as that account again. On a phone also a file beside the state mirror.
 const STASH_KEY = 'gym_stash'
-const STASH_FILE = 'repbook-stash.json'
+const STASH_FILE = 'setlog-stash.json'
 // A browser sign-out whose request never reached the server. The session cookie is HttpOnly, so
 // only the server's answer to /api/logout takes it out of the browser; until that answer comes,
 // boot sends the logout again instead of asking /api/me, which would sign the browser straight
@@ -71,9 +71,9 @@ function logoutOwed(on) {
   } catch { /* private mode with storage blocked */ }
   return false
 }
-// Mobile build: whose copy the file mirror (lib/mobile.js, repbook-state.json) holds, and which
+// Mobile build: whose copy the file mirror (lib/mobile.js, setlog-state.json) holds, and which
 // one — { owner, ts }, written after it (saveMirror). A device fact, so never inside S.
-const MIRROR_OWNER_FILE = 'repbook-state-owner.json'
+const MIRROR_OWNER_FILE = 'setlog-state-owner.json'
 const CHECK_MIN_MS = 3000    // rev checks closer together than this are the same event (focus + visibility)
 const POLL_MS = 30000        // while the app is open and signed in, ask the server for its revision this often
 const AUTO_BACKUP_SOON_MS = 2000   // several photos picked at once make one backup
@@ -252,7 +252,7 @@ const detectedLang = () => {
   return 'ru'
 }
 
-// A copy started from nothing on this device. Repbook defaults to Russian; the user can
+// A copy started from nothing on this device. SetLog defaults to Russian; the user can
 // change it in Settings → Units & language. `langAuto` stays false so the browser locale
 // does not override that default (upstream openGym used auto-detect + English fallback).
 export function freshState() {
@@ -420,7 +420,7 @@ export const useStore = create((set, get) => {
        'local'   no server: a phone in local mode, a guest, nobody signed in
        'auth'    the server refuses this device (a 401), or the phone has lost its pairing
        'offline' the server could not be reached at all (no network, DNS, a timeout)
-       'error'   it answered with a failure: 5xx, 403, 413, a page that is not Repbook's
+       'error'   it answered with a failure: 5xx, 403, 413, a page that is not SetLog's
        'held'    signed in, but the question about this device's own entries is still open
        'pending' reachable, and a change is still waiting to reach it
        'ok'      this device holds what the server holds
@@ -1306,7 +1306,7 @@ export const useStore = create((set, get) => {
        hangs off it via coachAvailable(), so an unconfigured instance renders exactly what it
        always did, and a configured one is the only place any of it appears. */
     config: null,
-    needsMobileOnboarding: false,   // mobile build only — set true by boot() on a genuine first launch
+    needsMobileOnboarding: false,   // kept for SyncBanner; boot() always starts local, never shows the chooser
     // A one-time device-link code this page was opened with (?link=, #95), until it is redeemed.
     // Never persisted: the code is good for minutes and belongs to this one visit.
     linkCode: null,
@@ -1901,12 +1901,13 @@ export const useStore = create((set, get) => {
           // again; the address is gone, so pairing asks for it.
           markOwed(true)
           failed({ status: 0, code: 'not-paired' }, { pending: true })
-        } else get().setGuest(true)
+        }
+        // Do not auto-guest: Login's "Get started" / «Начать» enters local mode. Returning guests
+        // already have gym_guest set and skip Login.
         syncReminder(get().S)
-        // Only a genuinely first launch — nothing chosen yet and nothing to lose either — offers
-        // the choice. Picking local (even with no data yet) persists that choice below and this
-        // never asks again.
-        finishBoot({ needsMobileOnboarding: !remote && !hasData(get().S) })
+        // Persist local-only (no first-launch chooser). Connecting is Settings → Account.
+        if (!remote) await chooseLocal()
+        finishBoot()
         return
       }
       // Demo build (GitHub Pages): no backend at all — seed once, stay in guest mode.

@@ -33,14 +33,27 @@ export async function isAndroid() {
   }
 }
 
-const FILE = 'repbook-state.json'
+const FILE = 'setlog-state.json'
+
+// Private data files were `repbook-*.json` (and briefly `SetLog-*.json` during the rename).
+// Read those first-launch fallbacks so an update does not drop the on-device log.
+function privatePaths(name) {
+  if (!name.startsWith('setlog-')) return [name]
+  const rest = name.slice('setlog-'.length)
+  return [name, 'SetLog-' + rest, 'Setlog-' + rest, 'repbook-' + rest]
+}
 
 export async function nativeLoad() {
   try {
     const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
-    const r = await Filesystem.readFile({ path: FILE, directory: Directory.Data, encoding: Encoding.UTF8 })
-    return JSON.parse(r.data)
-  } catch (e) { return null }   // first launch, or unreadable — localStorage copy takes over
+    for (const path of privatePaths(FILE)) {
+      try {
+        const r = await Filesystem.readFile({ path, directory: Directory.Data, encoding: Encoding.UTF8 })
+        return JSON.parse(r.data)
+      } catch (e) { /* try the next legacy name */ }
+    }
+  } catch (e) { /* Capacitor missing */ }
+  return null   // first launch, or unreadable — localStorage copy takes over
 }
 
 export async function nativeSave(state) {
@@ -51,19 +64,24 @@ export async function nativeSave(state) {
 }
 
 // "Connect to my server" mode (lib/remote.js): which of local-only / a paired remote account this
-// device chose, kept in its own file — never inside repbook-state.json, since that file's content
+// device chose, kept in its own file — never inside setlog-state.json, since that file's content
 // is exactly what pushState() PUTs to a server, and a device's own connection secret must never
 // travel as if it were training data.
-const REMOTE_FILE = 'repbook-remote.json'
+const REMOTE_FILE = 'setlog-remote.json'
 
 // Small JSON files in the app's private data directory, for device facts that must not ride
 // in S (which syncs and exports): the pairing, and how the Coach runs on this phone.
 export async function readJsonFile(name) {
   try {
     const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
-    const r = await Filesystem.readFile({ path: name, directory: Directory.Data, encoding: Encoding.UTF8 })
-    return JSON.parse(r.data)
-  } catch (e) { return null }
+    for (const path of privatePaths(name)) {
+      try {
+        const r = await Filesystem.readFile({ path, directory: Directory.Data, encoding: Encoding.UTF8 })
+        return JSON.parse(r.data)
+      } catch (e) { /* try the next legacy name */ }
+    }
+  } catch (e) { /* Capacitor missing */ }
+  return null
 }
 export async function writeJsonFile(name, data) {
   try {
@@ -73,18 +91,11 @@ export async function writeJsonFile(name, data) {
 }
 
 export async function loadRemoteFile() {
-  try {
-    const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
-    const r = await Filesystem.readFile({ path: REMOTE_FILE, directory: Directory.Data, encoding: Encoding.UTF8 })
-    return JSON.parse(r.data)
-  } catch (e) { return null }   // never decided yet
+  return readJsonFile(REMOTE_FILE)   // never decided yet → null
 }
 
 export async function saveRemoteFile(data) {
-  try {
-    const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
-    await Filesystem.writeFile({ path: REMOTE_FILE, directory: Directory.Data, data: JSON.stringify(data), encoding: Encoding.UTF8 })
-  } catch (e) { /* worst case: onboarding asks again next launch */ }
+  await writeJsonFile(REMOTE_FILE, data)
 }
 
 // Keep enough dates queued to cover normal app use between foregrounds without creating an
@@ -261,7 +272,7 @@ export async function printHtml(html, name) {
   await Print.printHtml({ html, name })
 }
 
-// "Auto-backup on changes" (Settings): a dated snapshot dropped into Documents/Repbook/ —
+// "Auto-backup on changes" (Settings): a dated snapshot dropped into Documents/SetLog/ —
 // visible in Files (iOS) / a file manager (Android), unlike the private mirror nativeSave keeps
 // — so whatever the user points at that folder (a sync app, a manual copy) always has something
 // recent. One file per day; later triggers the same day just overwrite it.
@@ -272,11 +283,11 @@ export async function printHtml(html, name) {
 // The root is never pruned: a manual export saved there carries the same name, and nothing
 // tells it apart from an old automatic copy, so those stay for the person to clear (Import
 // backup still reads either kind).
-export const AUTO_BACKUP_DIR = 'Repbook'
+export const AUTO_BACKUP_DIR = 'SetLog'
 export const AUTO_BACKUP_KEEP = 14
 // Only the exact names writeAutoBackup gives its files are ever pruned; anything else someone
-// keeps in the folder is theirs.
-const AUTO_BACKUP_NAME = /^repbook-backup-\d{4}-\d{2}-\d{2}(-[2-9])?\.json$/
+// keeps in the folder is theirs. Also match older Repbook-era copies so prune still cleans them.
+const AUTO_BACKUP_NAME = /^(?:setlog|SetLog|Setlog|repbook)-backup-\d{4}-\d{2}-\d{2}(-[2-9])?\.json$/
 
 // Android's scoped storage lets an install write over, list and delete only the files it wrote
 // itself. After a reinstall, or with the test build beside the real one, today's name can belong
@@ -303,7 +314,7 @@ export async function writeAutoBackup(state) {
   // day then went without a copy, silently, while the newest file there was another install's.
   let name = null
   for (const suffix of ['', '-2', '-3', '-4', '-5', '-6', '-7', '-8', '-9']) {
-    const n = `repbook-backup-${day}${suffix}.json`
+    const n = `setlog-backup-${day}${suffix}.json`
     try { await write(n); name = n; break } catch (e) { /* owned by another install, or the disk said no: the next name */ }
   }
   if (!name) return   // best effort — the private mirror in Directory.Data still has the data
@@ -335,9 +346,9 @@ async function pruneAutoBackups({ Filesystem, Directory }, written) {
    and never in S: S syncs and exports, and a content:// address means nothing anywhere else.
 
    { uri, label }       the chosen folder, and its name as the picker showed it
-   { lost, lostLabel }  the folder stopped accepting copies; they go to Documents/Repbook again
-   {}                   the default, Documents/Repbook */
-export const BACKUP_FOLDER_FILE = 'repbook-backup-folder.json'
+   { lost, lostLabel }  the folder stopped accepting copies; they go to Documents/SetLog again
+   {}                   the default, Documents/SetLog */
+export const BACKUP_FOLDER_FILE = 'setlog-backup-folder.json'
 
 // The plugin proxy lives here and is never handed through a promise: a Capacitor plugin proxy
 // answers every property, `then` included, so a promise resolving to it never settles (#42/#58).
@@ -383,7 +394,7 @@ export async function chooseBackupFolder() {
   return next
 }
 
-/** Back to Documents/Repbook; also how the warning about a lost folder is put away. */
+/** Back to Documents/SetLog; also how the warning about a lost folder is put away. */
 export async function resetBackupFolder() {
   const before = await backupFolder()
   if (before.uri) await releaseFolder(before.uri)
@@ -400,7 +411,7 @@ async function releaseFolder(uri) {
 async function writeToChosenFolder(state, day) {
   const folder = await backupFolder()
   if (!folder.uri) return false
-  const name = `repbook-backup-${day}.json`
+  const name = `setlog-backup-${day}.json`
   try {
     await loadFolderPlugin()
     const { ok } = await folderPlugin.check({ uri: folder.uri })
