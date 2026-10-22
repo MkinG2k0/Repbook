@@ -2,7 +2,7 @@
 // the latest release on GitHub and optionally downloads + installs the APK.
 //
 // The GitHub releases API is public, so no token is needed (60 requests an hour per address,
-// and the check runs once per app session). GitHub is openGym's home since v1.4.0; the GitLab
+// and the check runs once per app session). GitHub is Repbook's home since v1.4.0; the GitLab
 // mirror stopped getting releases, so a phone that asked it saw no update.
 // On Android (Capacitor) the APK is downloaded natively into the cache directory (an APK with
 // the animations is ~300 MB: read into the WebView's memory it ran phones out of it, and
@@ -11,7 +11,8 @@
 
 import { MOBILE } from './mobile.js'
 
-const REPO = 'DuarteSantos8/openGym'
+// Repbook fork: do not pull APKs from upstream Repbook releases.
+const REPO = 'MkinG2k0/Repbook'
 const LATEST_URL = `https://api.github.com/repos/${REPO}/releases/latest`
 export const RELEASES_PAGE = `https://github.com/${REPO}/releases/latest`
 
@@ -51,8 +52,8 @@ function compareSemver(a, b) {
 let cached = null
 export function resetUpdateCheck() { cached = null }
 export async function checkForUpdate() {
-  if (!cached) cached = fetchLatest().catch(e => { cached = null; throw e })
-  return cached
+  // No public Repbook releases yet — skip network check so we never install upstream Repbook APKs.
+  return { hasUpdate: false, latestVersion: __APP_VERSION__, apkUrl: null, hashUrl: null }
 }
 async function fetchLatest() {
   const res = await fetch(LATEST_URL, { headers: { Accept: 'application/vnd.github+json' } })
@@ -78,8 +79,8 @@ export async function fetchChecksum(hashUrl) {
   let text
   if (MOBILE) {
     const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
-    await Filesystem.downloadFile({ url: hashUrl, path: 'opengym-update.apk.sha256', directory: Directory.Cache })
-    text = (await Filesystem.readFile({ path: 'opengym-update.apk.sha256', directory: Directory.Cache, encoding: Encoding.UTF8 })).data
+    await Filesystem.downloadFile({ url: hashUrl, path: 'repbook-update.apk.sha256', directory: Directory.Cache })
+    text = (await Filesystem.readFile({ path: 'repbook-update.apk.sha256', directory: Directory.Cache, encoding: Encoding.UTF8 })).data
   } else {
     const res = await fetch(hashUrl)
     if (!res.ok) return null
@@ -114,7 +115,7 @@ export async function downloadAndInstall(url, expectedHash, onProgress = null) {
   }
   if (!/^[0-9a-f]{64}$/i.test(expectedHash || '')) throw new Error('no checksum to verify the download against')
   const { Filesystem, Directory } = await import('@capacitor/filesystem')
-  const fileName = 'opengym-update.apk'
+  const fileName = 'repbook-update.apk'
   const listener = onProgress
     ? await Filesystem.addListener('progress', p => onProgress(p.bytes, p.contentLength))
     : null

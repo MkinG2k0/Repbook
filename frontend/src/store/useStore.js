@@ -50,7 +50,7 @@ const SYNCED_FP_KEY = 'gym_synced_fp'  // a fingerprint of that copy (lib/sync-c
 // Changes a forced sign-out or disconnect kept on this device, by server and account, until it
 // reaches that server as that account again. On a phone also a file beside the state mirror.
 const STASH_KEY = 'gym_stash'
-const STASH_FILE = 'opengym-stash.json'
+const STASH_FILE = 'repbook-stash.json'
 // A browser sign-out whose request never reached the server. The session cookie is HttpOnly, so
 // only the server's answer to /api/logout takes it out of the browser; until that answer comes,
 // boot sends the logout again instead of asking /api/me, which would sign the browser straight
@@ -71,9 +71,9 @@ function logoutOwed(on) {
   } catch { /* private mode with storage blocked */ }
   return false
 }
-// Mobile build: whose copy the file mirror (lib/mobile.js, opengym-state.json) holds, and which
+// Mobile build: whose copy the file mirror (lib/mobile.js, repbook-state.json) holds, and which
 // one — { owner, ts }, written after it (saveMirror). A device fact, so never inside S.
-const MIRROR_OWNER_FILE = 'opengym-state-owner.json'
+const MIRROR_OWNER_FILE = 'repbook-state-owner.json'
 const CHECK_MIN_MS = 3000    // rev checks closer together than this are the same event (focus + visibility)
 const POLL_MS = 30000        // while the app is open and signed in, ask the server for its revision this often
 const AUTO_BACKUP_SOON_MS = 2000   // several photos picked at once make one backup
@@ -85,8 +85,8 @@ const gainedWorkoutMedia = (prev, next) => {
   return workoutMediaHashes(next).some(h => !had.has(h))
 }
 export const DEF = {
-  unit: 'kg', restSec: 90, restPauseSec: 15, sound: true, soundOnSilent: false, vibrateOnSilent: false, timerFlash: false, timedSetOvertime: false, keepAwake: true, lang: 'en',
-  theme: 'dark', accent: 'lime', body: 'male', targetW: null,
+  unit: 'kg', restSec: 90, restPauseSec: 15, sound: true, soundOnSilent: false, vibrateOnSilent: false, timerFlash: false, timedSetOvertime: false, keepAwake: true, lang: 'ru',
+  theme: 'dark', accent: 'orange', body: 'male', targetW: null,
   bodyweight: [], routines: [], week: {}, dayPlan: {},
   // A note per day off (#261): { [iso]: { tag, text, _ts } } (lib/day-notes.js). A noted day is
   // excused from the missed-day nudge; each day merges on its own stamp (lib/sync-merge.js).
@@ -249,17 +249,16 @@ const detectedLang = () => {
     const base = (navigator.language || '').toLowerCase().split('-')[0]
     if (RTL_LANGS.has(base)) return base
   } catch (e) { /* ignore */ }
-  return 'en'
+  return 'ru'
 }
 
-// A copy started from nothing on this device. `langAuto` marks its language as one nobody has
-// picked yet, so the instance's DEFAULT_LANG or the browser's language may set it
-// (lib/default-lang.js, #303); picking one in Settings clears it. DEF does not carry the mark:
-// merged under a saved copy it would claim that every existing profile never chose.
+// A copy started from nothing on this device. Repbook defaults to Russian; the user can
+// change it in Settings → Units & language. `langAuto` stays false so the browser locale
+// does not override that default (upstream openGym used auto-detect + English fallback).
 export function freshState() {
   const s = clone(DEF)
-  s.lang = detectedLang()
-  s.langAuto = true
+  s.lang = 'ru'
+  s.langAuto = false
   s.weighIn = false
   // Exercise animations: Small (v1.3.11), a thumbnail beside the exercise name that a tap opens,
   // so the first set is on screen without scrolling. DEF stays 'full' for a profile saved before.
@@ -421,7 +420,7 @@ export const useStore = create((set, get) => {
        'local'   no server: a phone in local mode, a guest, nobody signed in
        'auth'    the server refuses this device (a 401), or the phone has lost its pairing
        'offline' the server could not be reached at all (no network, DNS, a timeout)
-       'error'   it answered with a failure: 5xx, 403, 413, a page that is not openGym's
+       'error'   it answered with a failure: 5xx, 403, 413, a page that is not Repbook's
        'held'    signed in, but the question about this device's own entries is still open
        'pending' reachable, and a change is still waiting to reach it
        'ok'      this device holds what the server holds
