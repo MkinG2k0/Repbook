@@ -17,9 +17,8 @@ import { excusedOn } from './day-notes.js'
 
 export const MOBILE = import.meta.env.VITE_MOBILE === '1'
 
-// Some features only make sense on Android. The in-app updater downloads an .apk and hands it
-// to the system package installer — there is no equivalent on iOS (App Store only) or on the
-// web build. On anything but a native Android shell this must stay off.
+// Some features only make sense on Android (Health Connect, backup-folder picker, etc.).
+// On anything but a native Android shell this must stay off.
 //
 // @capacitor/core is imported dynamically (like every other Capacitor dependency here) so it
 // never lands in the web bundle. Capacitor.getPlatform() returns 'android' | 'ios' | 'web'.

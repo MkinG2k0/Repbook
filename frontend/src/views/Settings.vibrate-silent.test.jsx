@@ -21,7 +21,6 @@ const mocks = vi.hoisted(() => {
     replaceState: vi.fn(), setUser: vi.fn(), pullState: vi.fn(), pushState: vi.fn(),
     signOut: vi.fn(), signOutAll: vi.fn(), resetDemo: vi.fn(), disconnectServer: vi.fn(),
   })
-  state.checkForUpdate = vi.fn(() => Promise.resolve({ hasUpdate: true, latestVersion: '9.9.9', apkUrl: 'https://x/SetLog.apk', hashUrl: null }))
   state.confirmSheet = vi.fn()
   return state
 })
@@ -48,10 +47,6 @@ vi.mock('../lib/mobile.js', () => ({
   isAndroid: () => Promise.resolve(mocks.android),
   shareExport: vi.fn(), syncReminder: vi.fn(),
 }))
-vi.mock('../lib/update.js', () => ({
-  checkForUpdate: (...a) => mocks.checkForUpdate(...a),
-  downloadAndInstall: vi.fn(),
-}))
 vi.mock('./MobileOnboarding.jsx', () => ({ ConnectSheet: () => null }))
 vi.mock('../sheets.jsx', () => ({
   starterPlanSheet: vi.fn(), confirmSheet: (...a) => mocks.confirmSheet(...a), importFromApp: vi.fn(),
@@ -68,7 +63,6 @@ beforeEach(() => {
   }
   mocks.MOBILE = false
   mocks.android = false
-  mocks.checkForUpdate.mockClear()
   mocks.confirmSheet.mockClear()
   Object.defineProperty(navigator, 'vibrate', { value: () => true, configurable: true, writable: true })
   host = document.createElement('div')
@@ -81,7 +75,6 @@ afterEach(() => {
   delete navigator.vibrate
 })
 
-// The effect resolves two promises (isAndroid, then checkForUpdate) before the row can render.
 const mount = async () => {
   await act(async () => { root.render(<Settings page="alerts" />) })
   await act(async () => { await Promise.resolve(); await Promise.resolve() })

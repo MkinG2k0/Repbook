@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, forwardRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useNavigate, useParams, useLocation, Navigate } from 'react-router-dom'
 import { useStore, DEF, hasData } from '../store/useStore.js'
 import { healthStatus, loadHealth, enableHealth, disableHealth, openHealthConnect, onHealthChange } from '../lib/health-sync.js'
@@ -31,7 +31,6 @@ import { getMediaStatus, subscribeMediaStatus, pendingRefCount } from '../lib/me
 import { limitsFrom, fmtMB, MB } from '../lib/media-limits.js'
 import { setRestAccent } from '../lib/rest-alert.js'
 import { CUSTOM, accentKey, adjustedIn, applyAccent, cleanHex, inkOn, isGrey } from '../lib/accent.js'
-import { checkForUpdate, downloadAndInstall, fetchChecksum, RELEASES_PAGE } from '../lib/update.js'
 import { forgetCoach } from '../lib/coach-api.js'
 import { REST_MAX, REST_PAUSE_MIN, REST_PAUSE_MAX, fmtRest, fmtDuration } from '../lib/duration.js'
 import { starterPlanSheet, confirmSheet, importFromApp, importFromHevy, equipmentProfileSheet, plateInventorySheet, dumbbellInventorySheet, menuSheet } from '../sheets.jsx'
@@ -148,22 +147,14 @@ export default function Settings({ page = null, find = null, via = null }) {
     update(s => { chooseRotation(s) })
   }
 
-  // --- update check state ---
-  const [updateInfo, setUpdateInfo] = useState(null) // { hasUpdate, latestVersion, apkUrl, hashUrl } | null
   const [android, setAndroid] = useState(false)
-  const [checking, setChecking] = useState(false)
   // Where auto-backup writes on this Android phone, for the Auto-backup row's own subtitle.
   const [backupDir] = useBackupFolder(MOBILE && android && !!S.autoBackup)
 
   useEffect(() => {
-    // The in-app updater installs an .apk, so it only applies to the native Android build.
-    // On iOS and the web this check is skipped and the update row never appears. isAndroid()
-    // already answers false off the mobile build; the MOBILE check on top keeps the web bundle
-    // from even asking (and from calling GitHub on every Settings visit). Only the pages
-    // that show it ask: the root (for nothing but `android`) skips the release check.
     if (!MOBILE) return
-    isAndroid().then(ok => { setAndroid(ok); if (ok && page === 'about') checkForUpdate().then(setUpdateInfo).catch(() => {}) })
-  }, [page])
+    isAndroid().then(setAndroid)
+  }, [])
 
   // A search hit: scroll its row (or button) into view and flash it once. A row that shows only
   // once the page has heard back from the server (web push, the passkey list) is waited for a
@@ -196,60 +187,6 @@ export default function Settings({ page = null, find = null, via = null }) {
     }, 1500)
     return () => { done = true; mo?.disconnect(); clearTimeout(wait); clearTimeout(tm) }
   }, [find])
-
-  // The same check, on demand: the automatic one is silent when it finds nothing or cannot
-  // reach GitHub, and a person who taps "Check for updates" deserves an answer either way.
-  const checkNow = async () => {
-    if (checking) return
-    setChecking(true)
-    try {
-      const info = await checkForUpdate()
-      setUpdateInfo(info)
-      if (!info.hasUpdate) toast(t('You have the latest version.'))
-    } catch {
-      toast(t('Couldn’t check for updates. Are you online?'))
-    }
-    setChecking(false)
-  }
-
-  const onUpdateRowClick = () => {
-    if (!updateInfo?.hasUpdate) return
-    if (updateInfo.apkUrl) {
-      // Start download & install
-      const version = updateInfo.latestVersion
-      confirmSheet({
-        title: t('Update to {0}?', version),
-        message: t('The latest version will be downloaded and the installer will open.'),
-        confirmText: t('Download & Install'),
-        onConfirm: async () => {
-          // Open a progress sheet
-          let closeProgress = null
-          let setProgress = null
-          useUI.getState().openSheet(close => {
-            closeProgress = close
-            return <DownloadProgress ref={fn => { setProgress = fn }} />
-          }, { locked: true })
-          try {
-            // The release always publishes the checksum next to the APK. Without it the file is
-            // not installed — a sideloaded binary is exactly the thing that should be verified.
-            let expectedHash = null
-            try { expectedHash = await fetchChecksum(updateInfo.hashUrl) } catch (e) { /* reported below */ }
-            if (!/^[0-9a-f]{64}$/i.test(expectedHash || '')) throw new Error(t('Checksum not available, so not installing'))
-            await downloadAndInstall(updateInfo.apkUrl, expectedHash, (received, total) => {
-              if (setProgress) setProgress(received, total)
-            })
-            if (closeProgress) closeProgress()
-          } catch (e) {
-            if (closeProgress) closeProgress()
-            toast(t('Update failed: {0}', e.message))
-          }
-        },
-      })
-    } else {
-      // Update available but no APK asset — open the releases page
-      window.open(RELEASES_PAGE, '_blank', 'noopener')
-    }
-  }
 
   // Reads the store at the moment of the tap: the sheet that asks before a sign-out offers it too,
   // and the copy it exports is the one that has not reached the server.
@@ -805,20 +742,13 @@ export default function Settings({ page = null, find = null, via = null }) {
     </>,
 
     about: () => <>
-      {/* Updates. On Android the row is always there: it checks on demand and installs when a
-          release is newer (checksum verified, see onUpdateRowClick). On the web the app updates
-          with its server, so the row points at the APK for the phone instead. iOS has no APK. */}
-      <Section footer={MOBILE ? (android ? t('Releases are checked on GitHub. The download is verified against its checksum before the installer opens.') : null) : t('The web app updates together with your server. The Android app installs its own updates from here.')}>
+      {/* Version only on the phone build — store updates come from RuStore / the storefront.
+          On the web, point people at the Android download page. */}
+      <Section footer={MOBILE ? null : t('The web app updates together with your server.')}>
         <Row icon="info" iconTint="var(--grey)" title={t('Version')} value={'v' + __APP_VERSION__} />
-        {MOBILE
-          ? android && <Row icon="download" iconTint="var(--green)"
-              title={updateInfo?.hasUpdate ? t('Update to SetLog v{0}', updateInfo.latestVersion) : t('Check for updates')}
-              subtitle={checking ? t('Checking…') : t('You have v{0}', __APP_VERSION__)}
-              accessory="chevron"
-              onClick={() => (updateInfo?.hasUpdate ? onUpdateRowClick() : checkNow())} />
-          : <Row icon="download" iconTint="var(--green)" title={t('Get the Android app')}
-              subtitle={t('Download the APK from SetLog.ch')} accessory="chevron"
-              onClick={() => window.open('https://SetLog.ch/#download', '_blank', 'noopener')} />}
+        {!MOBILE && <Row icon="download" iconTint="var(--green)" title={t('Get the Android app')}
+          subtitle={t('Download the APK from SetLog.ch')} accessory="chevron"
+          onClick={() => window.open('https://SetLog.ch/#download', '_blank', 'noopener')} />}
       </Section>
       {/* "Add to Home screen": not inside the phone app, and not once it is installed. */}
       {!MOBILE && !standalone() && <Section title={t('Tip')}>
@@ -981,32 +911,6 @@ const EFFORT_ROWS = [
 // against. Not where the stepper starts; + walks up from the bottom of the scale.
 const EFFORT_TYPICAL = 2
 
-
-// Download progress sheet — receives a ref callback that exposes a (received, total) setter.
-// Uses forwardRef so the caller can push byte counts in without re-rendering the whole Settings tree.
-const DownloadProgress = forwardRef(function DownloadProgress(_, ref) {
-  const [pct, setPct] = useState(0)
-  const [text, setText] = useState(t('Starting download…'))
-  // Expose a setter the caller can invoke directly
-  if (ref) ref(function update(received, total) {
-    if (total > 0) {
-      const p = Math.min(100, Math.round((received / total) * 100))
-      setPct(p)
-      setText(t('{0} %', p))
-    } else {
-      setText(t('{0} MB', (received / 1_000_000).toFixed(1)))
-    }
-  })
-  return (
-    <div style={{ textAlign: 'center', padding: '8px 0' }}>
-      <h3>{t('Downloading update…')}</h3>
-      <div style={{ margin: '16px 0', height: 6, borderRadius: 3, background: 'var(--fill-3)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: pct + '%', background: 'var(--acc)', borderRadius: 3, transition: 'width .2s' }} />
-      </div>
-      <div className="muted small">{text}</div>
-    </div>
-  )
-})
 
 // Settings → Sound (#306): every end-of-rest sound, each played as it is picked so you hear it
 // before the next rest does. The sheet stays open for the next one; Done closes it. Stored as
