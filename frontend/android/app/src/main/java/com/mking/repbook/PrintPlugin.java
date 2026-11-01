@@ -15,19 +15,19 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * Minimal local Capacitor plugin that hands a self-contained HTML document to the Android
  * system print flow (Save as PDF, Save to Drive, a real printer). Android WebView has no
  * window.print(), so the printable plan page (lib/plan-share.js planPrintHTML) can only reach
- * a PDF this way. No PDF library is bundled — the OS renders it.
+ * a PDF this way. No PDF library is bundled вЂ” the OS renders it.
  *
  * Usage from JS:
  *   import { registerPlugin } from '@capacitor/core';
  *   const Print = registerPlugin('Print');
- *   await Print.printHtml({ html: '<!doctype html>…', name: 'Weekly Training Plan' });
+ *   await Print.printHtml({ html: '<!doctype html>вЂ¦', name: 'Weekly Training Plan' });
  */
 @CapacitorPlugin(name = "Print")
 public class PrintPlugin extends Plugin {
 
     // The print framework drives an off-screen WebView asynchronously; without a strong
     // reference it can be collected mid-spool and the job dies silently. Held until the next
-    // print replaces it — one at a time is all the UI can start.
+    // print replaces it вЂ” one at a time is all the UI can start.
     private WebView printView;
 
     @PluginMethod
@@ -38,6 +38,12 @@ public class PrintPlugin extends Plugin {
             return;
         }
         final String jobName = call.getString("name", "SetLog");
+        // The sheet starts on the paper people use where the phone is (lib/print-doc.js paperFor);
+        // it can be changed there. Page numbers and margins come from the document's own @page
+        // rules, which this WebView (Chromium) prints.
+        final PrintAttributes.MediaSize media = "letter".equals(call.getString("paper", "a4"))
+                ? PrintAttributes.MediaSize.NA_LETTER
+                : PrintAttributes.MediaSize.ISO_A4;
 
         getActivity().runOnUiThread(() -> {
             WebView webView = new WebView(getContext());
@@ -54,7 +60,7 @@ public class PrintPlugin extends Plugin {
                     PrintDocumentAdapter adapter = view.createPrintDocumentAdapter(jobName);
                     printManager.print(jobName, adapter,
                             new PrintAttributes.Builder()
-                                    .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                                    .setMediaSize(media)
                                     .build());
                     call.resolve();
                 }
