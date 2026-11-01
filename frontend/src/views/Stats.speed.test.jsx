@@ -49,6 +49,6 @@ describe('Stats — cardio speed', () => {
     const chart = mount({ unit: 'kg' })
     expect(chart.unit).toBe('km/h')
     expect(chart.points.map(p => p.y)).toEqual([9.66, 16.09])
-    expect(host.textContent).toContain('16.1 km/h')
+    expect(host.textContent.replace(',', '.')).toContain('16.1 km/h')
   })
 })

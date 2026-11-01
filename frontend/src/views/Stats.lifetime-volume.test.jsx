@@ -35,8 +35,12 @@ function mount(settings, workouts) {
   document.body.appendChild(host)
   root = createRoot(host)
   act(() => root.render(<Stats />))
-  return host.querySelector('[data-lifetime-volume] .v')?.textContent ?? null
+  const raw = host.querySelector('[data-lifetime-volume] .v')?.textContent ?? null
+  // fmtVol follows the active locale (narrow nbsp / comma); tests assert the en shape.
+  return raw && raw.replace(/[\u00a0\u202f]/g, '').replace(',', '')
 }
+
+const en = s => s.replace(/,/g, '')
 
 const history = () => [
   session('2026-09-01', [warm(40, 10), work(100, 5), work(100, 5)]),
@@ -47,15 +51,15 @@ const history = () => [
 
 describe('Stats: lifted in total', () => {
   it('adds up every session in the profile unit', () => {
-    expect(mount({}, history())).toBe('11,513 kg')
+    expect(mount({}, history())).toBe(en('11,513 kg'))
   })
 
   it('takes the warm-ups in when the profile counts them', () => {
-    expect(mount({ volumeWarmups: true }, history())).toBe('11,913 kg')
+    expect(mount({ volumeWarmups: true }, history())).toBe(en('11,913 kg'))
   })
 
   it('says lb for a pound profile', () => {
-    expect(mount({ unit: 'lb' }, [session('2026-09-01', [work(225, 5)])])).toBe('1,125 lb')
+    expect(mount({ unit: 'lb' }, [session('2026-09-01', [work(225, 5)])])).toBe(en('1,125 lb'))
   })
 
   it('stays away until something was lifted', () => {

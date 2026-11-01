@@ -41,7 +41,8 @@ function mount(workouts) {
 const exCard = () => [...host.querySelectorAll('.card')].find(c => c.querySelector('h2')?.textContent === 'Exercise progress')
 const press = (scope, label) => act(() => [...scope.querySelectorAll('.seg button')].find(b => b.textContent === label).click())
 const labels = scope => [...scope.querySelectorAll('.seg button')].map(b => b.textContent)
-const lastChart = () => mocks.charts.at(-1)
+// Prefer the relative-strength chart (% BW); later cards (effort, body weight) also draw.
+const lastChart = () => mocks.charts.filter(c => c.unit === '% BW').at(-1) || mocks.charts.at(-1)
 
 describe('Stats: Bodyweight view of exercise progress', () => {
   it('is not offered without a body weight to compare with, or with a single workout', () => {

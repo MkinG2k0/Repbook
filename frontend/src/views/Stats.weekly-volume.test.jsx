@@ -75,7 +75,7 @@ describe('Stats — weekly planned vs completed volume', () => {
     for (const m of ['chest', 'biceps', 'triceps']) expect(value(m).classList.contains('cmp'), m).toBe(true)
     expect(value('chest').getAttribute('aria-label')).toBe('Completed 8 sets · Planned 12 sets')
     expect(bar('chest').style.width).toBe('67%')
-    expect(value('triceps').textContent).toBe('0/4.8 · 0%')
+    expect(value('triceps').textContent.replace(',', '.')).toBe('0/4.8 · 0%')
     expect(bar('triceps').style.width).toBe('0%')
     expect(value('biceps').textContent).toBe('3/0')
     expect(value('biceps').getAttribute('aria-label')).toBe('Completed 3 sets · Planned 0 sets')
@@ -101,8 +101,8 @@ describe('Stats — weekly planned vs completed volume', () => {
     expect(weeklyToggle().textContent).toBe('Show more')
     expect(weeklyToggle().getAttribute('aria-expanded')).toBe('false')
     expect(weeklyToggle().querySelector('[data-icon="chevronDown"]')).toBeTruthy()
-    expect(isBefore(weeklyToggle(), missedHeading())).toBe(true)
-    expect([...comparison().querySelectorAll('.mchip.miss')].map(item => item.textContent)).toContain('Triceps')
+    expect(missedHeading()).toBeNull()
+    expect(comparison().querySelector('.mchip.miss')).toBeNull()
 
     act(() => weeklyToggle().click())
     expect(renderedMuscles()).toEqual(['biceps', 'upper-back', 'chest', 'calves', 'deltoids', 'triceps'])
@@ -110,7 +110,7 @@ describe('Stats — weekly planned vs completed volume', () => {
     expect(weeklyToggle().getAttribute('aria-expanded')).toBe('true')
     expect(weeklyToggle().querySelector('[data-icon="chevronDown"]')).toBeTruthy()
     expect(isBefore(weeklyToggle(), missedHeading())).toBe(true)
-    expect(value('triceps').textContent).toBe('0/4.8 · 0%')
+    expect(value('triceps').textContent.replace(',', '.')).toBe('0/4.8 · 0%')
     expect(isBefore(row('triceps'), missedHeading())).toBe(true)
     expect([...comparison().querySelectorAll('.mchip.miss')].map(item => item.textContent)).toContain('Triceps')
 
@@ -118,11 +118,14 @@ describe('Stats — weekly planned vs completed volume', () => {
     expect(renderedMuscles()).toEqual(['biceps', 'upper-back', 'chest', 'calves'])
     expect(weeklyToggle().textContent).toBe('Show more')
     expect(weeklyToggle().getAttribute('aria-expanded')).toBe('false')
+    expect(missedHeading()).toBeNull()
   })
 
   it('shows the completed-all-muscles summary after current-week rows', () => {
     mocks.S = state({ workouts: MUSCLES.map(muscle => completed('2026-09-30', muscle, 1)) })
     mount()
+    expect(missedHeading()).toBeNull()
+    act(() => weeklyToggle().click())
     const summary = [...comparison().querySelectorAll('.muted.small')]
       .find(item => item.textContent === 'Every muscle group got some work in this period.')
     expect(summary).toBeTruthy()
@@ -175,6 +178,8 @@ describe('Stats — weekly planned vs completed volume', () => {
     expect(comparison().textContent).not.toContain('/')
     expect(comparison().textContent).not.toContain('Planned')
     expect(comparison().querySelector('[aria-label*="Planned"]')).toBeNull()
+    expect(comparison().querySelector('.mchip.miss')).toBeNull()
+    act(() => weeklyToggle().click())
     expect([...comparison().querySelectorAll('.mchip.miss')].map(item => item.textContent)).toContain('Chest')
     expect(button('Next week').disabled).toBe(false)
     act(() => button('Next week').click())
@@ -203,6 +208,7 @@ describe('Stats — weekly planned vs completed volume', () => {
     expect(weeklyToggle().getAttribute('aria-expanded')).toBe('false')
     expect(weeklyToggle().querySelector('[data-icon="chevronDown"]')).toBeTruthy()
 
+    expect(comparison().querySelector('.mchip.miss')).toBeNull()
     act(() => weeklyToggle().click())
     expect(renderedMuscles()).toEqual(['quadriceps', 'hamstring', 'gluteal', 'calves', 'upper-back', 'biceps'])
     expect(weeklyToggle().textContent).toBe('Show less')
@@ -217,6 +223,7 @@ describe('Stats — weekly planned vs completed volume', () => {
     expect(renderedMuscles()).toEqual(['quadriceps', 'hamstring', 'gluteal', 'calves'])
     expect(weeklyToggle().textContent).toBe('Show more')
     expect(weeklyToggle().getAttribute('aria-expanded')).toBe('false')
+    expect(missedHeading()).toBeNull()
 
     act(() => weeklyToggle().click())
     act(() => button('Next week').click())
@@ -225,7 +232,7 @@ describe('Stats — weekly planned vs completed volume', () => {
     expect(weeklyToggle().getAttribute('aria-expanded')).toBe('false')
   })
 
-  it('omits Show more when the weekly list has four or fewer rows', () => {
+  it('keeps Show more for short lists so the untrained chips stay reachable', () => {
     mocks.S = state({ workouts: [
       completed('2026-09-30', 'chest', 4),
       completed('2026-09-30', 'biceps', 3),
@@ -234,10 +241,14 @@ describe('Stats — weekly planned vs completed volume', () => {
     ] })
     mount()
     expect(renderedMuscles()).toEqual(['chest', 'biceps', 'triceps'])
-    expect(weeklyToggle()).toBeNull()
+    expect(weeklyToggle().textContent).toBe('Show more')
+    expect(comparison().querySelector('.mchip.miss')).toBeNull()
+    act(() => weeklyToggle().click())
+    expect(comparison().querySelector('.mchip.miss')).toBeTruthy()
     act(() => button('Previous week').click())
     expect(renderedMuscles()).toEqual(['quadriceps', 'hamstring'])
-    expect(weeklyToggle()).toBeNull()
+    expect(weeklyToggle().textContent).toBe('Show more')
+    expect(comparison().querySelector('.mchip.miss')).toBeNull()
   })
 
   it('keeps the completed map, legend, navigator, and empty state for an empty previous week', () => {
@@ -284,6 +295,7 @@ describe('Stats — weekly planned vs completed volume', () => {
       workouts: [completed('2026-09-30', 'chest', 8)],
     })
     mount()
+    act(() => weeklyToggle().click())
     const chip = comparison().querySelector('.mchip.miss')
     expect(chip.tagName).toBe('BUTTON')
     act(() => chip.click())

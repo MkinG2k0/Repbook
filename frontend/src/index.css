@@ -1906,6 +1906,16 @@ button.mchip{border:none;font:inherit;font-size:12px;cursor:pointer}
 .stats-off[open]>summary .chev{transform:rotate(90deg)}
 .stats-off-b>.card{margin-bottom:10px}
 .stats-off-b>.card:last-child{margin-bottom:0}
+.stats-ex-more{margin-top:10px}
+.stats-ex-more>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;
+  font-size:13px;font-weight:400;color:var(--label-2);letter-spacing:-.004em;padding:2px 0}
+.stats-ex-more>summary::-webkit-details-marker{display:none}
+.stats-ex-more>summary .chev{margin-inline-start:auto;font-size:14px;color:var(--label-3);transition:transform .18s ease}
+.stats-ex-more[open]>summary .chev{transform:rotate(90deg)}
+.stats-ex-more-b{display:flex;flex-direction:column;gap:6px;padding:4px 0 2px}
+/* Exercise picker: flush with the card edges (no card pad + lrow pad stacking). */
+.stats-ex-pick{margin:0 -16px 10px}
+.stats-ex-pick .lrow{padding-inline:16px}
 
 /* --- PR badge --- */
 .pr{
