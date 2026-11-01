@@ -3112,7 +3112,8 @@ export function DayNoteRow({ iso, note }) {
 export function startFlow(routineIds) {
   // The weigh-in is a setting (Settings → During a workout, issue #137): off goes straight
   // into the session with no body weight on it, same as "Start without weighing in".
-  if (S().weighIn === false) { beginWorkout(routineIds, null); return }
+  // Weigh-in step needs the body-weight feature on as well as the per-workout switch.
+  if (S().weighIn === false || S().showWeightCard === false) { beginWorkout(routineIds, null); return }
   bwSheet({ required: true, onDone: bw => beginWorkout(routineIds, bw) })
 }
 // `opts` from the Apple Watch (lib/watch-sync.js): a session started there keeps the watch's id,
@@ -3159,7 +3160,7 @@ export function repeatWorkout(w, close) {
     if (close) closeThenNav(close, '/workout'); else navToWorkout()
     if (skipped) toast(tn('{0} exercise no longer exists and was left out.', '{0} exercises no longer exist and were left out.', skipped))
   }
-  if (st.weighIn === false) { go(null); return }
+  if (st.weighIn === false || st.showWeightCard === false) { go(null); return }
   if (close) close()
   bwSheet({ required: true, onDone: go })
 }
@@ -3614,7 +3615,7 @@ function LastAndNext({ st, w }) {
   const rows = finishCompare(st, w)
   if (!rows.length) return null
   const nextWord = { up: t('step up'), hold: t('same again'), down: t('lighter'), deload: t('deload') }
-  return <div style={{ textAlign: 'start', marginBottom: 14 }}>
+  return <div style={{ textAlign: 'start', marginBottom: 12 }}>
     <h4 className="sec">{t('Last time and next time')}</h4>
     <div className="list">{rows.map(row => {
       const ex = EXIDX[row.id]
@@ -3638,7 +3639,7 @@ function LastAndNext({ st, w }) {
 function CardioDone({ st, w }) {
   const rows = finishCardio(w)
   if (!rows.length) return null
-  return <div style={{ textAlign: 'start', marginBottom: 14 }}>
+  return <div style={{ textAlign: 'start', marginBottom: 12 }}>
     <h4 className="sec">{t('Cardio')}</h4>
     <div className="list">{rows.map((row, i) => {
       const ex = EXIDX[row.id]
@@ -3661,7 +3662,7 @@ function KeepInRoutine({ additions }) {
     setAdded(x => ({ ...x, [a.routineId]: true }))
     if (n) ui().toast(t('Routine updated'))
   }
-  return <div style={{ textAlign: 'start', marginBottom: 14 }} data-keep-in-routine>
+  return <div style={{ textAlign: 'start', marginBottom: 12 }} data-keep-in-routine>
     <h4 className="sec">{t('New in this workout')}</h4>
     {additions.map(a => <div key={a.routineId} style={{ marginBottom: 8 }}>
       <div className="small dim" style={{ marginBottom: 6 }}>{a.ex.map(cfg => EXIDX[cfg.id] ? exerciseNameText(EXIDX[cfg.id]) : cfg.id).join(', ')}</div>
@@ -3674,31 +3675,44 @@ function KeepInRoutine({ additions }) {
 
 function FinishSummary({ w, prs, e1prs = [], additions = [], close }) {
   const st = useStore(s => s.S)
-  return <div style={{ textAlign: 'center', padding: '8px 0' }}>
-    {/* Sticky, so the summary can be left from the top however far it has been scrolled. */}
-    <div className="fin-x"><button type="button" className="iconbtn" aria-label={t('Close')} onClick={() => closeThenNav(close, '/home')}><Icon name="xmark" /></button></div>
-    <div style={{ fontSize: 44, display: 'flex', justifyContent: 'center', color: 'var(--acc)', position: 'relative' }}><Icon name="trophy" /><SeasonDeco spot="finish" workout /></div>
-    <h3 style={{ margin: '8px 0' }}>{t('Workout complete!')}</h3>
-    <div className="tiles fin" style={{ textAlign: 'start' }}>
-      <div className="tile"><div className="l">{t('Duration')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{fmtDur(w.end - w.start)}</div></div>
-      <div className="tile"><div className="l">{t('Volume')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{fmtVol(sessionVolume(w, st), st.unit)}</div></div>
-      <div className="tile wide"><div className="l">{t('Sets')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{setsWorkCount(setsDone(w), workSetsDone(w))}</div></div>
-      <div className="tile narrow"><div className="l">{t('PRs')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{prs.length || '–'}</div></div>
+  const goHome = () => closeThenNav(close, '/home')
+  // Full page (kind: 'page'), not a centered dialog: the summary holds a map, PRs and the
+  // next-time list, and a phone dialog squeezed all of that into a short card.
+  return <div className="fin-page">
+    <header className="fin-page-bar">
+      <div className="fin-page-ttl">{t('Workout complete!')}</div>
+      <button type="button" className="iconbtn" aria-label={t('Close')} onClick={goHome}><Icon name="xmark" /></button>
+    </header>
+    <div className="fin-page-body">
+      <div className="narrow">
+        <div className="fin-page-hero">
+          <div style={{ fontSize: 48, display: 'flex', justifyContent: 'center', color: 'var(--acc)', position: 'relative' }}>
+            <Icon name="trophy" /><SeasonDeco spot="finish" workout />
+          </div>
+        </div>
+        <div className="tiles fin">
+          <div className="tile"><div className="l">{t('Duration')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{fmtDur(w.end - w.start)}</div></div>
+          <div className="tile"><div className="l">{t('Volume')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{fmtVol(sessionVolume(w, st), st.unit)}</div></div>
+          <div className="tile fin-wide"><div className="l">{t('Sets')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{setsWorkCount(setsDone(w), workSetsDone(w))}</div></div>
+          <div className="tile fin-n"><div className="l">{t('PRs')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{prs.length || '–'}</div></div>
+        </div>
+        {(prs.length > 0 || e1prs.length > 0) && <div className="fin-page-prs">
+          {prs.map(id => <div key={id} className="small accent row" style={{ gap: 6, alignItems: 'flex-start' }}><Icon name="trophy" style={{ fontSize: 13, marginTop: 2, flex: 'none' }} /><span>{t('New PR:')} <span className={exerciseNameClass(EXIDX[id])}>{EXIDX[id] ? exerciseNameFor(EXIDX[id]) : id}</span></span></div>)}
+          {e1prs.map(p => <div key={p.id} className="small accent row" style={{ gap: 6, alignItems: 'flex-start' }}><Icon name="chartLine" style={{ fontSize: 13, marginTop: 2, flex: 'none' }} /><span>{t('Best estimated 1RM:')} <span className={exerciseNameClass(EXIDX[p.id])}>{EXIDX[p.id] ? exerciseNameFor(EXIDX[p.id]) : p.id}</span> · {fmtNum(p.est)} {st.unit}</span></div>)}
+        </div>}
+        <h4 className="sec">{t('What you just trained')}</h4>
+        <BodyMap load={loadOfWorkouts([w])} body={st.body} />
+        <LastAndNext st={st} w={w} />
+        <CardioDone st={st} w={w} />
+        <KeepInRoutine additions={additions} />
+        {/* The moment for a progress photo or the clip of a set: the workout is already saved, so
+            what is added here goes straight onto its record. */}
+        <WorkoutMediaSection w={w} hint />
+      </div>
     </div>
-    {(prs.length > 0 || e1prs.length > 0) && <div style={{ textAlign: 'start', marginBottom: 12 }}>
-      {prs.map(id => <div key={id} className="small accent row" style={{ gap: 6, alignItems: 'flex-start' }}><Icon name="trophy" style={{ fontSize: 13, marginTop: 2, flex: 'none' }} /><span>{t('New PR:')} <span className={exerciseNameClass(EXIDX[id])}>{EXIDX[id] ? exerciseNameFor(EXIDX[id]) : id}</span></span></div>)}
-      {e1prs.map(p => <div key={p.id} className="small accent row" style={{ gap: 6, alignItems: 'flex-start' }}><Icon name="chartLine" style={{ fontSize: 13, marginTop: 2, flex: 'none' }} /><span>{t('Best estimated 1RM:')} <span className={exerciseNameClass(EXIDX[p.id])}>{EXIDX[p.id] ? exerciseNameFor(EXIDX[p.id]) : p.id}</span> · {fmtNum(p.est)} {st.unit}</span></div>)}
-    </div>}
-    <h4 className="sec" style={{ textAlign: 'start' }}>{t('What you just trained')}</h4>
-    <BodyMap load={loadOfWorkouts([w])} body={st.body} />
-    <div style={{ height: 14 }} />
-    <LastAndNext st={st} w={w} />
-    <CardioDone st={st} w={w} />
-    <KeepInRoutine additions={additions} />
-    {/* The moment for a progress photo or the clip of a set: the workout is already saved, so
-        what is added here goes straight onto its record. */}
-    <div style={{ textAlign: 'start' }}><WorkoutMediaSection w={w} hint /></div>
-    <Button variant="primary" onClick={() => closeThenNav(close, '/home')}>{t('Nice!')}</Button>
+    <div className="fin-page-foot">
+      <Button variant="primary" onClick={goHome}>{t('Nice!')}</Button>
+    </div>
   </div>
 }
 export function finishWorkout() {
@@ -3793,5 +3807,5 @@ function doFinishWorkout() {
   // into s.active, which is gone. What it held is not logged, like any set left unchecked.
   useUI.getState().stopWork()
   beep(snd(), 880, 0.15); beep(snd(), 1100, 0.15, 0.18); beep(snd(), 1320, 0.3, 0.36)
-  ui().openSheet(close => <FinishSummary w={shown} prs={prs} e1prs={e1prs} additions={additions} close={close} />, { kind: 'center', locked: true, wide: true })
+  ui().openSheet(close => <FinishSummary w={shown} prs={prs} e1prs={e1prs} additions={additions} close={close} />, { kind: 'page', locked: true })
 }

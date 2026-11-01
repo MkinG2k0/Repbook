@@ -46,7 +46,7 @@ import { ServerSyncSection, KeptChangesRows, leaveServer, connectServer, passkey
 import { passwordOn, PasswordRow, openPasswordSignIn, openPasswordRegister } from '../components/PasswordAuth.jsx'
 import { usePasskeys, PasskeysRow, DeviceLinkRow, openDeviceLinkRedeem, PairSheet } from '../components/Passkeys.jsx'
 import { DeleteAccountRow } from '../components/DeleteAccount.jsx'
-import { Section, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
+import { Section, Fold, Row, SelectRow, Switch, Segmented, Button, TextField, SearchField } from '../components/ui.jsx'
 import { PAGES, ROOT_GROUPS, pageVisible, searchSettings, pageTrail } from './settings-pages.js'
 import { platformNow } from '../lib/platform-now.js'
 import { pathBefore } from '../lib/nav.js'
@@ -195,6 +195,10 @@ export default function Settings({ page = null, find = null, via = null, entryKe
       || [...el.querySelectorAll('.btn')].find(b => b.textContent.trim() === label)
     let tm = null
     const flash = row => {
+      // A hit inside a closed Fold would otherwise flash off-screen; open every ancestor first.
+      for (let n = row.parentElement; n && n !== el; n = n.parentElement) {
+        if (n.tagName === 'DETAILS') n.open = true
+      }
       row.classList.add('sp-flash')
       if (typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'center' })
       tm = setTimeout(() => row.classList.remove('sp-flash'), 1900)
@@ -490,11 +494,11 @@ export default function Settings({ page = null, find = null, via = null, entryKe
       </Section>
       <Section title={t('Before and during')}>
         {/* The quick weigh-in that opens on Start (sheets.jsx startFlow, issue #137); off skips
-            straight to the session. Home and Stats still log weight by hand. */}
-        <Row icon="scale" iconTint="var(--green)" title={t('Weigh in before workouts')}
+            straight to the session. Needs the body-weight feature on. */}
+        {S.showWeightCard !== false && <Row icon="scale" iconTint="var(--green)" title={t('Weigh in before workouts')}
           subtitle={t('Asks for your body weight when a workout starts. Off starts the session straight away.')}>
           <Switch checked={S.weighIn !== false} onChange={v => update(s => { s.weighIn = v })} />
-        </Row>
+        </Row>}
         {(wakeOK || !MOBILE) && (
           <Row icon="phoneScreen" iconTint="var(--yellow)" title={t('Keep screen awake')}
             subtitle={wakeOK ? t('The screen stays on while a workout is running, so you don’t have to unlock your phone between sets.') : t('Not supported in this browser.')}>
@@ -763,7 +767,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
         </div>
         {/* The home-screen icon: the phone's own, not synced. iPhone only in 1.4.3 (Android follows). */}
         {MOBILE && platformNow() === 'ios' && <AppIconRow />}
-        {/* How the muscle map is drawn. The exercise drawings follow it until they are set below. */}
+        {/* How the muscle map is drawn. The exercise drawings follow it until they are set in Details. */}
         <Row icon="figureStrength" iconTint="var(--teal)" title={t('Body diagram')}>
           <Segmented
             className="seg-inline"
@@ -772,6 +776,48 @@ export default function Settings({ page = null, find = null, via = null, entryKe
             onChange={v => update(s => { s.body = v })}
           />
         </Row>
+      </Section>
+      {/* Halloween and whatever comes after it (lib/seasonal.js), on a page of their own. */}
+      <Section>
+        <Row icon="pumpkin" iconTint="var(--orange)" title={t('Seasonal themes')} subtitle={t('Little extras for the time of year.')}
+          value={activeSeasonTitle(S)} accessory="chevron" onClick={() => open('themes')} />
+      </Section>
+      {/* App-wide features: off hides the UI everywhere; data stays. */}
+      <Section title={t('Features')} footer={t('Turn off what you don’t use. Your data stays; the screens just get quieter.')}>
+        {/* Membership QR codes (views/CheckIn.jsx); off = no Home card, no route. */}
+        <Row icon="qr" iconTint="var(--blue)" title={t('Gym check-in')}
+          subtitle={t('Membership QR codes. Off hides them everywhere.')}>
+          <Switch checked={S.checkIn !== false} onChange={v => update(s => { s.checkIn = v })} />
+        </Row>
+        <Row icon="scale" iconTint="var(--green)" title={t('Body weight')}
+          subtitle={t('Weigh-ins and weight cards. Off hides them everywhere.')}>
+          <Switch checked={S.showWeightCard !== false} onChange={v => update(s => { s.showWeightCard = v })} />
+        </Row>
+        <Row icon="ruler" iconTint="var(--purple)" title={t('Body measurements')}
+          subtitle={t('Waist, arms and the rest. Off hides them everywhere.')}>
+          <Switch checked={S.showMeasurements !== false} onChange={v => update(s => { s.showMeasurements = v })} />
+        </Row>
+        <Row icon="camera" iconTint="var(--teal)" title={t('Progress photos')}
+          subtitle={t('Progress photos. Off hides them everywhere.')}>
+          <Switch checked={S.showProgressPhotos !== false} onChange={v => update(s => { s.showProgressPhotos = v })} />
+        </Row>
+      </Section>
+      <Section title={t('On Home')}>
+        <Row icon="calendar" iconTint="var(--orange)" title={t('Week strip')}
+          subtitle={t('Show the week strip on Home.')}>
+          <Switch checked={S.showWeekOnHome !== false} onChange={v => update(s => { s.showWeekOnHome = v })} />
+        </Row>
+        {S.showWeightCard !== false && <Row icon="chart" iconTint="var(--teal)" title={t('Weight chart')}
+          subtitle={t('Show the weight chart on the Home card.')}>
+          <Switch checked={S.showWeightChart !== false} onChange={v => update(s => { s.showWeightChart = v })} />
+        </Row>}
+        <Row icon="flame" iconTint="var(--orange)" title={t('Streak card')}
+          subtitle={t('Show the streak card on Home.')}>
+          <Switch checked={S.showStreakCard !== false} onChange={v => update(s => { s.showStreakCard = v })} />
+        </Row>
+      </Section>
+      {/* Secondary Look options: figure choice for animations, connection banner. Closed by default. */}
+      <Fold title={t('Details')}>
         {/* Which figure the exercise animations show where both exist (about 940 exercises; the
             rest are drawn once). Only the picture changes: the exercise and its id stay the same,
             so nothing logged is touched, on this device or any other. */}
@@ -784,23 +830,6 @@ export default function Settings({ page = null, find = null, via = null, entryKe
             onChange={v => update(s => { s.exFigure = v })}
           />
         </Row>
-      </Section>
-      {/* Halloween and whatever comes after it (lib/seasonal.js), on a page of their own. */}
-      <Section>
-        <Row icon="pumpkin" iconTint="var(--orange)" title={t('Seasonal themes')} subtitle={t('Little extras for the time of year.')}
-          value={activeSeasonTitle(S)} accessory="chevron" onClick={() => open('themes')} />
-      </Section>
-      <Section title={t('On Home')}>
-        {/* Membership QR codes on Home (views/CheckIn.jsx); off = no Home card, no route. */}
-        <Row icon="qr" iconTint="var(--blue)" title={t('Gym check-in')}
-          subtitle={t('Show a card on Home with your membership QR codes.')}>
-          <Switch checked={S.checkIn !== false} onChange={v => update(s => { s.checkIn = v })} />
-        </Row>
-        {/* The Home summary is optional; hiding it leaves weight logging, history and Stats intact. */}
-        <Row icon="scale" iconTint="var(--green)" title={t('Body weight')}
-          subtitle={t('Show the body weight card on Home.')}>
-          <Switch checked={S.showWeightCard !== false} onChange={v => update(s => { s.showWeightCard = v })} />
-        </Row>
         {/* The bar at the top that says the app is offline, kept local, or not synced (#369, #330).
             Here and not under Server & sync, which a phone kept local never shows. Switching it on
             also brings back the no-server line its × hid (#454). */}
@@ -808,7 +837,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
           subtitle={t('Off: the bar at the top is hidden. A dot on Home still warns when syncing is stuck.')}>
           <Switch checked={S.connStatus !== false} onChange={v => update(s => { s.connStatus = v; if (v) s.connLocal = true })} />
         </Row>}
-      </Section>
+      </Fold>
     </>,
 
     // One section per seasonal theme (lib/seasonal.js). Auto shows it in its weeks; On keeps it

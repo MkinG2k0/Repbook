@@ -30,6 +30,7 @@ import { DEFAULT_TEMPLATE_ID } from '../lib/structuralBalanceTemplates.js'
 import { WC_DEFAULT } from '../lib/workout-controls.js'
 import { sanitizeAccent } from '../lib/accent.js'
 import { registerExerciseAliases } from '../lib/exercise-aliases.js'
+import { freshHomeFeatureDefaults } from '../lib/home-features.js'
 
 const KEY = 'gym_state_v1'
 // Where the saved copy stands with the server: the revision it descends from, and its own `_ts`
@@ -132,7 +133,8 @@ export const DEF = {
   // brings one of the old always-visible button groups back (Settings → During a workout).
   wc: { ...WC_DEFAULT },
   // One-time hints already shown to this profile, synced so each shows once per person rather
-  // than once per device: { swipeSets: true } after the first swipe-on-sets nudge (Workout.jsx).
+  // than once per device: { tickSet: true } after the "tap the circle" nudge, { swipeSets: true }
+  // after the swipe-on-sets nudge (Workout.jsx).
   hints: {},
   // effort: which per-set effort scale is logged — 'none' | 'rir' | 'rpe'. null, not 'none', so
   // that a profile which never chose (loaded state is overlaid on DEF, on every path: local,
@@ -206,10 +208,27 @@ export const DEF = {
   // card and the /checkin route; the saved gymCards stay so turning it back on restores them.
   // Defaults on; an older profile without the key reads as on (`!== false`).
   checkIn: true,
-  // Whether the body-weight summary card is shown on Home. Off only hides that card: existing
-  // entries, Stats, imports and the separate pre-workout weigh-in flow keep working.
-  // Defaults on; an older profile without the key reads as on (`!== false`).
+  // Body weight feature (Home, Stats, pre-workout weigh-in). Off hides the UI everywhere;
+  // existing entries, imports and backups stay. Defaults on (`!== false`).
   showWeightCard: true,
+  // Chart (and weekly rate) under the Home body-weight card. Only applies when body weight is on.
+  // Defaults on (`!== false`).
+  showWeightChart: true,
+  // Body measurements feature (Stats card + /measurements). Off hides the UI; readings stay.
+  // Defaults on (`!== false`).
+  showMeasurements: true,
+  // Progress photos (Stats card + /progress-photos). Off hides the UI; photos stay.
+  // Defaults on (`!== false`).
+  showProgressPhotos: true,
+  // Week strip / coach queue on Home. Off leaves the Today row; Plan still has the full week.
+  // Defaults on (`!== false`).
+  showWeekOnHome: true,
+  // Streak card on Home. Off hides only that card; the calendar sheet stays reachable elsewhere.
+  // Defaults on (`!== false`).
+  showStreakCard: true,
+  // First-run Home features picker (views/FeaturesSetup.jsx). True here so an older profile
+  // without the key never sees it; freshState sets false until the user continues.
+  homeFeaturesSeen: true,
   // Whether Start opens the quick weigh-in first (sheets.jsx startFlow, issue #137). Off starts
   // the session straight away; weight can still be logged from Home/Stats. On here, so an
   // older profile without the key reads as on (`!== false`) and keeps the step it had; a profile
@@ -313,6 +332,8 @@ export function freshState() {
   // Exercise animations: Small (v1.3.11), a thumbnail beside the exercise name that a tap opens,
   // so the first set is on screen without scrolling. DEF stays 'full' for a profile saved before.
   s.gifSize = 'mini'
+  // First launch asks which Home cards to keep (lib/home-features.js); optional ones start off.
+  Object.assign(s, freshHomeFeatureDefaults())
   return s
 }
 

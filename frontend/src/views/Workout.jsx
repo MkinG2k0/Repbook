@@ -113,6 +113,7 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
   const working = useUI(s => s.work)
   const restEnds = useUI(s => s.timer?.endsAt)
   const swipeHint = useUI(s => (s.swipeHint?.idx === entryIdx ? s.swipeHint : null))
+  const tickHint = useUI(s => (s.tickHint?.idx === entryIdx ? s.tickHint : null))
   const setFlash = useUI(s => (s.setFlash?.idx === entryIdx ? s.setFlash : null))
   const optsId = useId()
   const entry = S.active.entries[entryIdx]
@@ -655,7 +656,9 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
           set off itself. The checkbox stays for anyone who timed it on their own watch. */}
       {timed && !editing && <button className="setgo" aria-label={t('Start set')} disabled={s.done || !!working}
         onClick={() => onStartTimed(i)}><Icon name="play" /></button>}
-      <Check checked={s.done} label={sideTagOf(s) ? t('Set {0} ({1}) done', setNumOf(s, i), sideTagOf(s)) : t('Set {0} done', setNumOf(s, i))} onChange={() => onToggle(i)} />
+      <Check className={tickHint && tickHint.i === i && !s.done ? 'hint' : ''}
+        checked={s.done} label={sideTagOf(s) ? t('Set {0} ({1}) done', setNumOf(s, i), sideTagOf(s)) : t('Set {0} done', setNumOf(s, i))}
+        onChange={() => { if (tickHint?.i === i) setUI({ tickHint: null }); onToggle(i) }} />
     </div>
   )
   // Swipe on sets (v1.3.11, Settings → Workout): a set row swiped toward the start of the line is
@@ -779,6 +782,11 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
               </div>
             </div>
           ) : pairHead ? <>{plainRow(s, i)}{plainRow(entry.sets[i + 1], i + 1)}</> : plainRow(s, i))}
+          {tickHint && tickHint.i === i && !s.done && <div className="swhint" data-tick-hint="">
+            <button type="button" onClick={() => setUI({ tickHint: null })}>
+              <Icon name="checkCircle" /><span>{t('Tap the circle when the set is done.')}</span><Icon name="xmark" />
+            </button>
+          </div>}
           {swipeHint && swipeHint.i === i && swipeOn && <div className="swhint">
             <button type="button" onClick={() => setUI({ swipeHint: null })}>
               <Icon name="swap" /><span>{t('Psst: swipe a set. Left deletes, right copies.')}</span><Icon name="xmark" />
@@ -1091,46 +1099,66 @@ function ActiveWorkout() {
       if (n < was[k]) progressHighWater.current[k] = Math.min(progressHighWater.current[k] || 0, A.entries[k].sets.filter(s => s.done).length)
     })
   }, [setCounts.join(',')])
-  // The one-time swipe hint (v1.3.11): the first time the screen shows an unticked set with swiping
-  // on, that row nudges toward delete and toward copy, with a chip under it saying so. Seen once
-  // per person (S.hints, synced), not per device. In Cards only the exercise on screen qualifies.
-  // It waits for a quiet moment: the nudge moves the row, and a tick tapped while it moves lands
-  // where the circle was a moment ago, so the tap is lost (iOS UI test, CI 10-13: the first set
-  // ticked a second after the workout opened never ticked). HINT_QUIET_MS without a touch first.
-  const hintSeen = !!(S.hints && S.hints.swipeSets)
+  // One-time workout hints (S.hints, synced once per person). Both wait for a quiet moment:
+  // HINT_QUIET_MS without a touch — a nudge that moves the row would steal a tap that landed
+  // where the circle was (iOS UI test, CI 10-13). In Cards only the exercise on screen qualifies.
+  // Tick first (how to finish a set); swipe after that, and only with swiping on.
+  const tickSeen = !!(S.hints && S.hints.tickSet)
+  const swipeSeen = !!(S.hints && S.hints.swipeSets)
   const hintTm = useRef(null)
-  useEffect(() => {
-    if (!wc.swipeSets || hintSeen || !A.entries.length) return
+  const findFirstOpenSet = () => {
+    const A2 = useStore.getState().S.active
+    if (!A2?.entries?.length) return null
+    const c = Math.min(Math.max(A2.cur || 0, 0), A2.entries.length - 1)
+    const shownUnit = unitOf(supersetUnits(A2.entries), c)
+    const order = listMode ? [c, ...A2.entries.keys()] : shownUnit
+    for (const k of order) {
+      const j = A2.entries[k]?.sets.findIndex(x => !x.done) ?? -1
+      if (j >= 0) return { idx: k, i: j }
+    }
+    return null
+  }
+  const scheduleHint = (ready, show) => {
+    if (!ready || !A.entries.length) return () => {}
     const startedAt = Date.now()
+    let cancelled = false
     let tm = null
     const quietIn = () => Math.max(HINT_DELAY_MS - (Date.now() - startedAt), lastTouchAt + HINT_QUIET_MS - Date.now())
     const later = () => {
+      if (cancelled) return
       const wait = quietIn()
       if (wait > 0) { tm = setTimeout(later, wait); return }
-      show()
-    }
-    const show = () => {
-      const A2 = useStore.getState().S.active
-      if (!A2 || useStore.getState().S.hints?.swipeSets) return
-      const c = Math.min(Math.max(A2.cur || 0, 0), A2.entries.length - 1)
-      const shownUnit = unitOf(supersetUnits(A2.entries), c)
-      const order = listMode ? [c, ...A2.entries.keys()] : shownUnit
-      let at = null
-      for (const k of order) {
-        const j = A2.entries[k]?.sets.findIndex(x => !x.done) ?? -1
-        if (j >= 0) { at = { idx: k, i: j }; break }
-      }
-      if (!at) return
-      update(s => { s.hints = { ...(s.hints || {}), swipeSets: true } })
-      const id = Date.now()
-      setUI({ swipeHint: { ...at, id } })
-      clearTimeout(hintTm.current)
-      hintTm.current = setTimeout(() => { if (useUI.getState().swipeHint?.id === id) setUI({ swipeHint: null }) }, 6000)
+      show({
+        cancelled: () => cancelled,
+        retry: ms => { if (!cancelled) tm = setTimeout(later, ms) },
+      })
     }
     later()
-    return () => clearTimeout(tm)
-  }, [wc.swipeSets, hintSeen, A.entries.length, cur, listMode])
-  useEffect(() => () => { clearTimeout(hintTm.current); setUI({ swipeHint: null, setFlash: null }) }, [])
+    return () => { cancelled = true; clearTimeout(tm) }
+  }
+  useEffect(() => scheduleHint(!tickSeen, ({ cancelled }) => {
+    if (cancelled() || useStore.getState().S.hints?.tickSet) return
+    const at = findFirstOpenSet()
+    if (!at) return
+    update(s => { s.hints = { ...(s.hints || {}), tickSet: true } })
+    const id = Date.now()
+    setUI({ tickHint: { ...at, id }, swipeHint: null })
+    clearTimeout(hintTm.current)
+    hintTm.current = setTimeout(() => { if (useUI.getState().tickHint?.id === id) setUI({ tickHint: null }) }, 6000)
+  }), [tickSeen, A.entries.length, cur, listMode])
+  // After the tick nudge (same session once its chip is gone, or a later workout).
+  useEffect(() => scheduleHint(!!(wc.swipeSets && tickSeen && !swipeSeen), ({ cancelled, retry }) => {
+    if (cancelled() || !useStore.getState().S.hints?.tickSet || useStore.getState().S.hints?.swipeSets) return
+    if (useUI.getState().tickHint) { retry(400); return }
+    const at = findFirstOpenSet()
+    if (!at) return
+    update(s => { s.hints = { ...(s.hints || {}), swipeSets: true } })
+    const id = Date.now()
+    setUI({ swipeHint: { ...at, id } })
+    clearTimeout(hintTm.current)
+    hintTm.current = setTimeout(() => { if (useUI.getState().swipeHint?.id === id) setUI({ swipeHint: null }) }, 6000)
+  }), [wc.swipeSets, tickSeen, swipeSeen, A.entries.length, cur, listMode])
+  useEffect(() => () => { clearTimeout(hintTm.current); setUI({ swipeHint: null, tickHint: null, setFlash: null }) }, [])
   useEffect(() => {
     const liveEntries = new Set(A.entries)
     for (const entry of exRefs.current.keys()) {

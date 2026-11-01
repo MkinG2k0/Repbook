@@ -313,6 +313,20 @@ export function Section({ title, footer, children, className = '' }) {
   )
 }
 
+// A Settings fold for secondary options: closed by default so the page stays short, opens when
+// the user taps the title (or when a search hit lives inside — Settings opens the details first).
+export function Fold({ title, children, className = '' }) {
+  return (
+    <details className={'sp-fold ' + className}>
+      <summary className="sp-fold-sum">
+        <span>{title}</span>
+        <Icon name="chevronRight" className="chev" aria-hidden="true" />
+      </summary>
+      <div className="sp-fold-b">{children}</div>
+    </details>
+  )
+}
+
 export function Row({ icon, iconTint, title, subtitle, value, accessory = 'none', onClick, danger, children, className = '' }) {
   const Tag = onClick ? 'button' : 'div'
   return (

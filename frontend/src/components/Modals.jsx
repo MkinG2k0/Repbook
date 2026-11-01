@@ -126,6 +126,9 @@ function Sheet({ sheet }) {
   // backdrop to tap, no drag to dismiss — the viewer has its own close button, and back closes
   // it like any sheet.
   if (sheet.kind === 'viewer') return <div>{sheet.render(close)}</div>
+  // Full app page (workout finish summary): owns the screen, scrolls itself, has its own chrome.
+  // No backdrop, no swipe-to-dismiss — Close / Nice! (or a locked back) leave it.
+  if (sheet.kind === 'page') return <div className="sheet-page">{sheet.render(close)}</div>
   if (sheet.kind === 'center') {
     return (
       <div>

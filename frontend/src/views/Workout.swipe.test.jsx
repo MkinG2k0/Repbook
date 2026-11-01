@@ -399,8 +399,11 @@ describe('the swipe panes’ words', () => {
 })
 
 describe('the one-time hint', () => {
+  // Tick nudge comes first; swipe tests start after that has already been seen.
+  const afterTick = { tickSet: true }
+
   it('nudges the first unticked set once per person, with a chip', () => {
-    setActive([entry('1001', [row(80, true), row(80)])], { hints: {} })
+    setActive([entry('1001', [row(80, true), row(80)])], { hints: { ...afterTick } })
     render()
     expect(container.querySelector('.swhint')).toBeNull()
     act(() => vi.advanceTimersByTime(700))
@@ -414,7 +417,7 @@ describe('the one-time hint', () => {
   it('gives way to a real swipe while it is still nudging the row', () => {
     const widthSpy = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(360)
     try {
-      setActive([entry('1001', [row(80, true), row(70)])], { hints: {} })
+      setActive([entry('1001', [row(80, true), row(70)])], { hints: { ...afterTick } })
       render()
       act(() => vi.advanceTimersByTime(700))
       expect(useUI.getState().swipeHint).toMatchObject({ idx: 0, i: 1 })
@@ -429,7 +432,7 @@ describe('the one-time hint', () => {
   // iOS UI test, CI 10-13: the nudge moved the first set while the test ticked it a second after
   // the workout opened, and the tap landed where the circle had been. A touch puts it off.
   it('waits for a quiet moment: not while the screen is being touched', () => {
-    setActive([entry('1001', [row(80), row(80)])], { hints: {} })
+    setActive([entry('1001', [row(80), row(80)])], { hints: { ...afterTick } })
     render()
     act(() => vi.advanceTimersByTime(300))
     document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
@@ -442,15 +445,25 @@ describe('the one-time hint', () => {
   })
 
   it('stays away with swiping off, or once seen', () => {
-    setActive([entry('1001', [row(80)])], { hints: {}, wc: { swipeSets: false } })
+    setActive([entry('1001', [row(80)])], { hints: { ...afterTick }, wc: { swipeSets: false } })
     render()
     act(() => vi.advanceTimersByTime(700))
     expect(useStore.getState().S.hints.swipeSets).toBeUndefined()
     act(() => root.unmount()); container.remove()
 
-    setActive([entry('1001', [row(80)])], { hints: { swipeSets: true } })
+    setActive([entry('1001', [row(80)])], { hints: { ...afterTick, swipeSets: true } })
     render()
     act(() => vi.advanceTimersByTime(700))
     expect(useUI.getState().swipeHint).toBeNull()
+  })
+
+  it('stays away until the tick-the-circle hint has been shown', () => {
+    setActive([entry('1001', [row(80)])], { hints: {} })
+    render()
+    act(() => vi.advanceTimersByTime(700))
+    expect(useUI.getState().tickHint).toMatchObject({ idx: 0, i: 0 })
+    expect(useUI.getState().swipeHint).toBeNull()
+    expect(container.querySelector('[data-tick-hint]').textContent).toContain('Tap the circle when the set is done.')
+    expect(container.querySelector('.chk.hint')).toBeTruthy()
   })
 })

@@ -31,6 +31,7 @@ function useConnection() {
   const sync = useStore(s => s.sync)
   const guest = useStore(s => s.isGuest())
   const onboarding = useStore(s => s.needsMobileOnboarding)
+  const featuresSetup = useStore(s => s.S?.homeFeaturesSeen === false)
   const online = useOnline()
   const [waited, setWaited] = useState(false)
   const status = sync?.status
@@ -43,8 +44,8 @@ function useConnection() {
 
   const view = connectionView(sync, { online })
   // Signed out on the web, the sign-in screen is the whole app: it hears only that the server
-  // ended the session, and that the changes are still here.
-  const show = !DEMO && !onboarding && !!view?.banner && (!!user || guest || status === 'auth') && (status !== 'pending' || waited)
+  // ended the session, and that the changes are still here. First-run screens stay clear too.
+  const show = !DEMO && !onboarding && !featuresSetup && !!view?.banner && (!!user || guest || status === 'auth') && (status !== 'pending' || waited)
   return { view, show, user, status }
 }
 

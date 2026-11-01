@@ -33,6 +33,7 @@ import { anchorsByWorkout, resolveSetRir } from '../lib/recovery.js'
 import { Button, Segmented, SelectRow } from '../components/ui.jsx'
 import { tappable } from '../lib/use-sheet-keyboard.js'
 import { isWarmupRow } from '../lib/workout-model.js'
+import { featureOn, statsFeaturesOff } from '../lib/home-features.js'
 
 // Set 1 to 5 on the per-set chart — system colours, so each line keeps its hue in dark mode.
 const SET_COLORS = ['var(--blue)', 'var(--green)', 'var(--orange)', 'var(--purple)', 'var(--pink)']
@@ -720,6 +721,12 @@ export default function Stats() {
   if (showMax) exOpts.push({ value: 'max', label: t('Max reps') })
   if (showRel) exOpts.push({ value: 'bodyweight', label: t('Bodyweight') })
 
+  const bwOn = featureOn(S, 'showWeightCard')
+  const measOn = featureOn(S, 'showMeasurements')
+  const photosOn = featureOn(S, 'showProgressPhotos')
+  const offStats = statsFeaturesOff(S)
+  const enableFeature = key => useStore.getState().update(s => { s[key] = true })
+
   return <>
     <div className="hdr"><SeasonDeco spot="stats-hdr" /><div><h1>{t('Stats')}</h1><div className="sub">{t('Progress & history')}</div></div>
       <div className="row" style={{ gap: 8 }}>
@@ -731,67 +738,13 @@ export default function Stats() {
       <div className="tile"><div className="l"><Icon name="dumbbell" />{t('Workouts')}</div><div className="v">{workouts.length}</div></div>
       <div className="tile"><div className="l"><Icon name="calendar" />{t('This month')}</div><div className="v">{monthW}</div></div>
       <div className="tile"><div className="l"><Icon name="flame" />{t('Week streak')}</div><div className="v">{streakWeeks(S)}</div></div>
-      <div className="tile"><div className="l"><Icon name="scale" />{t('Weight 30d')}</div><div className="v" style={{ fontSize: 22, color: bwDelta30 === null ? 'inherit' : bwDeltaColor(bwDelta30, (lastBW(S) || {}).w || 0) }}>{bwDelta30 === null ? '–' : (bwDelta30 > 0 ? '+' : '') + fmtNum(bwDelta30) + ' ' + S.unit}</div></div>
+      {bwOn && <div className="tile"><div className="l"><Icon name="scale" />{t('Weight 30d')}</div><div className="v" style={{ fontSize: 22, color: bwDelta30 === null ? 'inherit' : bwDeltaColor(bwDelta30, (lastBW(S) || {}).w || 0) }}>{bwDelta30 === null ? '–' : (bwDelta30 > 0 ? '+' : '') + fmtNum(bwDelta30) + ' ' + S.unit}</div></div>}
       {/* Everything ever lifted (Discord): imports included, warm-ups only when the profile
           counts them (#719). Full width, since a few hundred sessions make a long number. */}
       {lifetime > 0 && <div className="tile" style={{ gridColumn: '1 / -1' }} data-lifetime-volume><SeasonDeco spot="stats-tile" /><div className="l"><Icon name="plate" />{t('Lifted in total')}</div><div className="v">{fmtVol(Math.round(lifetime), S.unit)}</div></div>}
     </div>
 
     <div className="card">
-      <SeasonDeco spot="stats-heatmap" />
-      <h2>{t('Activity (last 12 months)')}</h2>
-      <Heatmap
-        S={S}
-        metric={S.heatmapMetric === 'vol' ? 'vol' : 'time'}
-        onMetricChange={metric => useStore.getState().update(s => { s.heatmapMetric = metric })}
-        onDay={iso => { const ws = workouts.filter(w => workoutDay(w) === iso); if (ws.length === 1) workoutDetailSheet(ws[0]); else if (ws.length) calendarSheet(iso); else dayOverrideSheet(iso) }}
-      />
-    </div>
-
-    {(workouts.length > 0 || Object.keys(loadOfWeeklyPlan(S)).length > 0) && <MuscleBalance S={S} />}
-    {S.routines.length > 0 && <WeeklyPlanVolume S={S} />}
-    {workouts.length > 0 && <div className="card row between" style={{ alignItems: 'center', gap: 12 }}>
-      <div style={{ minWidth: 0 }}><h2 style={{ margin: 0 }}>{t('Structural balance')}</h2>
-        <div className="muted small" style={{ marginTop: 4 }}>{t('See which lift is holding back the rest.')}</div></div>
-      <Button size="sm" variant="tinted" trailingIcon="chevronRight" style={{ flexShrink: 0 }} onClick={() => nav('/structural-balance')}>{t('Open')}</Button>
-    </div>}
-    {(workouts.length > 0 || dayPhotosOf(S).length > 0) && <div className="card row between" style={{ alignItems: 'center', gap: 12 }}>
-      <div style={{ minWidth: 0 }}><h2 style={{ margin: 0 }}>{t('Progress photos')}</h2>
-        <div className="muted small" style={{ marginTop: 4 }}>{t('Every progress photo, lined up by date, for any day. Plus a before/after slider.')}</div></div>
-      <Button size="sm" variant="tinted" trailingIcon="chevronRight" style={{ flexShrink: 0 }} onClick={() => nav('/progress-photos')}>{t('Open')}</Button>
-    </div>}
-    <div className="card row between" style={{ alignItems: 'center', gap: 12 }}>
-      <SeasonDeco spot="stats-peek" />
-      <div style={{ minWidth: 0 }}><h2 style={{ margin: 0 }}>{t('Body measurements')}</h2>
-        <div className="muted small" style={{ marginTop: 4 }}>{(S.measurements || []).length
-          ? t('Last check-in {0}', fmtDate(S.measurements[S.measurements.length - 1].d, true))
-          : t('Waist, arms, body fat and anything else you measure, each with its own curve.')}</div></div>
-      <Button size="sm" variant="tinted" trailingIcon="chevronRight" style={{ flexShrink: 0 }} onClick={() => nav('/measurements')}>{t('Open')}</Button>
-    </div>
-    {(hasEffort(S) || hasEstimableEffort(S)) && <EffortCard S={S} />}
-
-    <div className="cols">
-      <div className="card">
-        <div className="row between bw-head" style={{ marginBottom: 8 }}>
-          <h2 style={{ margin: 0 }}>{t('Body weight')}</h2>
-          <div className="row" style={{ gap: 8 }}>
-            <Button size="sm" icon="target" style={S.targetW ? { color: 'var(--yellow)' } : undefined} onClick={goalSheet}>{S.targetW ? fmtNum(S.targetW) : t('Goal')}</Button>
-            <Button size="sm" icon="plus" onClick={() => bwSheet()}>{t('Log')}</Button>
-          </div>
-        </div>
-        <Segmented className="seg-range" value={range} onChange={setRange}
-          options={rangeOptions()} />
-        <div className="chart"><LineChart points={bwPts} h={160} unit={S.unit} goal={S.targetW} /></div>
-        {/* the weekly rate and, with one set, how it sits in its corridor (#759) */}
-        {S.bodyweight.length > 0 && <WeightRate S={S} />}
-        {/* every weigh-in, week by week with its average (Discord 'Weight') */}
-        {S.bodyweight.length > 0 && <div className="row" style={{ justifyContent: 'flex-end', marginTop: 4 }}>
-          <Button size="sm" variant="ghost" trailingIcon="chevronRight" onClick={weighInsSheet}>{t('All weigh-ins')}</Button>
-        </div>}
-        <SeasonDeco spot="stats-web" />
-      </div>
-
-      <div className="card">
         <h2>{t('Exercise progress')}</h2>
         {exHist.length ? <>
           <div className="sect-b" style={{ marginBottom: 10 }}>
@@ -852,15 +805,93 @@ export default function Stats() {
             {t('A fuller dot means less left in the tank. The same weight at a lower {0} is progress the line alone doesn’t show.', hd)}
           </div>}
         </> : <div className="muted small">{t('Finish your first workout and your progress curves will show up here.')}</div>}
-      </div>
     </div>
 
-    {workouts.length > 0 && <>
+    {workouts.length > 0 && <div style={{ marginBottom: 14 }}>
       <div className="row between" style={{ marginBottom: 10 }}>
         <h4 className="sec" style={{ margin: 0 }}>{t('Recent workouts')}</h4>
         <Button size="sm" variant="ghost" trailingIcon="chevronRight" onClick={() => nav('/history')}>{t('All')} {workouts.length}</Button>
       </div>
       <div className="list">{[...workouts].reverse().slice(0, 6).map(w => <WorkoutRow key={w.id} w={w} onClick={() => workoutDetailSheet(w)} />)}</div>
-    </>}
+    </div>}
+
+    {bwOn && <div className="card">
+      <div className="row between bw-head" style={{ marginBottom: 8 }}>
+        <h2 style={{ margin: 0 }}>{t('Body weight')}</h2>
+        <div className="row" style={{ gap: 8 }}>
+          <Button size="sm" icon="target" style={S.targetW ? { color: 'var(--yellow)' } : undefined} onClick={goalSheet}>{S.targetW ? fmtNum(S.targetW) : t('Goal')}</Button>
+          <Button size="sm" icon="plus" onClick={() => bwSheet()}>{t('Log')}</Button>
+        </div>
+      </div>
+      <Segmented className="seg-range" value={range} onChange={setRange} options={rangeOptions()} />
+      <div className="chart"><LineChart points={bwPts} h={160} unit={S.unit} goal={S.targetW} /></div>
+      {S.bodyweight.length > 0 && <WeightRate S={S} />}
+      {S.bodyweight.length > 0 && <div className="row" style={{ justifyContent: 'flex-end', marginTop: 4 }}>
+        <Button size="sm" variant="ghost" trailingIcon="chevronRight" onClick={weighInsSheet}>{t('All weigh-ins')}</Button>
+      </div>}
+      <SeasonDeco spot="stats-web" />
+    </div>}
+
+    {measOn && <div className="card row between" style={{ alignItems: 'center', gap: 12 }}>
+      <SeasonDeco spot="stats-peek" />
+      <div style={{ minWidth: 0 }}><h2 style={{ margin: 0 }}>{t('Body measurements')}</h2>
+        <div className="muted small" style={{ marginTop: 4 }}>{(S.measurements || []).length
+          ? t('Last check-in {0}', fmtDate(S.measurements[S.measurements.length - 1].d, true))
+          : t('Waist, arms, body fat and anything else you measure, each with its own curve.')}</div></div>
+      <Button size="sm" variant="tinted" trailingIcon="chevronRight" style={{ flexShrink: 0 }} onClick={() => nav('/measurements')}>{t('Open')}</Button>
+    </div>}
+
+    {photosOn && (workouts.length > 0 || dayPhotosOf(S).length > 0) && <div className="card row between" style={{ alignItems: 'center', gap: 12 }} data-stats-photos>
+      <div style={{ minWidth: 0 }}><h2 style={{ margin: 0 }}>{t('Progress photos')}</h2>
+        <div className="muted small" style={{ marginTop: 4 }}>{t('Every progress photo, lined up by date, for any day. Plus a before/after slider.')}</div></div>
+      <Button size="sm" variant="tinted" trailingIcon="chevronRight" style={{ flexShrink: 0 }} onClick={() => nav('/progress-photos')}>{t('Open')}</Button>
+    </div>}
+
+    {/* Heatmap, effort, muscle map and plan volume — useful, but not the first thing you need. */}
+    <details className="stats-off stats-more">
+      <summary className="stats-off-sum">
+        <span>{t('More')}</span>
+        <Icon name="chevronRight" className="chev" aria-hidden="true" />
+      </summary>
+      <div className="stats-off-b">
+        <div className="card">
+          <SeasonDeco spot="stats-heatmap" />
+          <h2>{t('Activity (last 12 months)')}</h2>
+          <Heatmap
+            S={S}
+            metric={S.heatmapMetric === 'vol' ? 'vol' : 'time'}
+            onMetricChange={metric => useStore.getState().update(s => { s.heatmapMetric = metric })}
+            onDay={iso => { const ws = workouts.filter(w => workoutDay(w) === iso); if (ws.length === 1) workoutDetailSheet(ws[0]); else if (ws.length) calendarSheet(iso); else dayOverrideSheet(iso) }}
+          />
+        </div>
+        {(hasEffort(S) || hasEstimableEffort(S)) && <EffortCard S={S} />}
+        {(workouts.length > 0 || Object.keys(loadOfWeeklyPlan(S)).length > 0) && <MuscleBalance S={S} />}
+        {S.routines.length > 0 && <WeeklyPlanVolume S={S} />}
+        {workouts.length > 0 && <div className="card row between" style={{ alignItems: 'center', gap: 12 }}>
+          <div style={{ minWidth: 0 }}><h2 style={{ margin: 0 }}>{t('Structural balance')}</h2>
+            <div className="muted small" style={{ marginTop: 4 }}>{t('See which lift is holding back the rest.')}</div></div>
+          <Button size="sm" variant="tinted" trailingIcon="chevronRight" style={{ flexShrink: 0 }} onClick={() => nav('/structural-balance')}>{t('Open')}</Button>
+        </div>}
+      </div>
+    </details>
+
+    {offStats.length > 0 && <details className="stats-off">
+      <summary className="stats-off-sum">
+        <span>{t('Turned off')}</span>
+        <span className="muted small">{offStats.length}</span>
+        <Icon name="chevronRight" className="chev" aria-hidden="true" />
+      </summary>
+      <div className="stats-off-b">
+        {offStats.map(f => (
+          <div key={f.key} className="card row between" style={{ alignItems: 'center', gap: 12 }} data-stats-enable={f.key}>
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ margin: 0 }}>{t(f.title)}</h2>
+              <div className="muted small" style={{ marginTop: 4 }}>{t(f.statsBlurb || f.subtitle)}</div>
+            </div>
+            <Button size="sm" variant="tinted" style={{ flexShrink: 0 }} onClick={() => enableFeature(f.key)}>{t('Enable')}</Button>
+          </div>
+        ))}
+      </div>
+    </details>}
   </>
 }

@@ -217,10 +217,11 @@ function endTone(enabled, kind) {
 }
 
 export const useUI = create((set, get) => ({
-  sheets: [],          // { id, render:(close)=>JSX, kind:'sheet'|'center', locked, wide }
+  sheets: [],          // { id, render:(close)=>JSX, kind:'sheet'|'center'|'page'|'viewer', locked, wide }
   toastMsg: '',
   toastAction: null,   // { label, run, id } while the toast offers an action (Undo)
   swipeHint: null,     // { idx, i, id }: the set row showing the one-time swipe hint (Workout.jsx)
+  tickHint: null,      // { idx, i, id }: the set circle pulsing "tap when done" (Workout.jsx)
   setFlash: null,      // { idx, i, id }: the set row a copy or an undo just brought, flashed once
   timer: null,         // rest countdown between sets — { left, total, endsAt, forIdx, ready?, paused?, kind? }
                        // kind: 'switch' for the short pause between the two sides of a timed set

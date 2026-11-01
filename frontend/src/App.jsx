@@ -43,6 +43,7 @@ import { useAnimPacksBoot } from './components/Animations.jsx'
 import Login from './views/Login.jsx'
 import MobileOnboarding from './views/MobileOnboarding.jsx'
 import PermissionSteps from './views/PermissionSteps.jsx'
+import FeaturesSetup from './views/FeaturesSetup.jsx'
 import Home from './views/Home.jsx'
 import Plan from './views/Plan.jsx'
 import Workout from './views/Workout.jsx'
@@ -127,6 +128,8 @@ function Shell() {
   const isGuest = useStore(s => s.isGuest())
   const needsMobileOnboarding = useStore(s => s.needsMobileOnboarding)
   const permSteps = useStore(s => s.permSteps)
+  // Brand-new profile: pick Home cards once (freshState sets homeFeaturesSeen false).
+  const needsFeaturesSetup = S.homeFeaturesSeen === false
   const langV = useLang()   // re-renders the whole shell when the language (pack) changes
   useEffect(() => { setNav(navigate) }, [navigate])
   const lastEditPath = useRef(loc.pathname)
@@ -275,7 +278,7 @@ function Shell() {
   }, [inWorkout])
   // The chat owns the bottom of the screen as well: its composer sits where the tabs would be.
   // The first-launch card has no tabs either: they changed the route behind it.
-  const noTabs = inWorkout || loc.pathname === '/coach' || needsMobileOnboarding || permSteps
+  const noTabs = inWorkout || loc.pathname === '/coach' || needsMobileOnboarding || permSteps || needsFeaturesSetup
 
   const authed = user || isGuest
   // The boot screen in index.html covers the start; it goes once there is something to show.
@@ -288,7 +291,7 @@ function Shell() {
     </div>
   )
 
-  const view = l => (!authed ? <Login /> : needsMobileOnboarding ? <MobileOnboarding /> : permSteps ? <PermissionSteps /> : (
+  const view = l => (!authed ? <Login /> : needsMobileOnboarding ? <MobileOnboarding /> : permSteps ? <PermissionSteps /> : needsFeaturesSetup ? <FeaturesSetup /> : (
     <Routes location={l}>
       <Route path="/home" element={<Home />} />
       {/* Gym check-in — switched off in Settings, the route falls through to the
@@ -302,8 +305,8 @@ function Shell() {
       <Route path="/library" element={<Library />} />
       <Route path="/muscles" element={<Muscles />} />
       <Route path="/structural-balance" element={<StructuralBalance />} />
-      <Route path="/progress-photos" element={<ProgressPhotos />} />
-      <Route path="/measurements" element={<Measurements />} />
+      {S.showProgressPhotos !== false && <Route path="/progress-photos" element={<ProgressPhotos />} />}
+      {S.showMeasurements !== false && <Route path="/measurements" element={<Measurements />} />}
       <Route path="/settings" element={<SettingsRoute />} />
       <Route path="/settings/:page" element={<SettingsRoute />} />
       {/* The Coach screens gate themselves on the instance config; the routes exist
@@ -317,7 +320,7 @@ function Shell() {
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   ))
-  const showPreview = !!preview && preview !== loc.pathname && authed && !needsMobileOnboarding && !permSteps
+  const showPreview = !!preview && preview !== loc.pathname && authed && !needsMobileOnboarding && !permSteps && !needsFeaturesSetup
 
   return (
     <>
@@ -341,7 +344,7 @@ function Shell() {
       <TimerFlash />
       {/* Seasonal decoration (lib/seasonal.js): nothing, and nothing loaded, out of season. Never
           over a running workout or the first-launch screens. */}
-      {authed && !needsMobileOnboarding && !permSteps && <SeasonalLayer hidden={inWorkout || loc.pathname === '/workout'} />}
+      {authed && !needsMobileOnboarding && !permSteps && !needsFeaturesSetup && <SeasonalLayer hidden={inWorkout || loc.pathname === '/workout'} />}
     </>
   )
 }
