@@ -112,7 +112,6 @@ export default function Login() {
         <Button icon="plusCircle" onClick={register}>{t('Create new profile')}</Button>
         <div style={{ height: 10 }} />
         <Button variant="ghost" className="dim" icon="qr" onClick={openDeviceLinkRedeem}>{t('Use a code from your other device')}</Button>
-        {/* No device signs you in any more (#584): what to try, and where a recovery code goes. */}
         <Button variant="ghost" className="dim" onClick={openLostAccess}>{t('Lost access?')}</Button>
         {canGuest && <div style={{ height: 4 }} />}
       </> : pwOn ? <>
